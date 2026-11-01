@@ -32,7 +32,7 @@
     return j;
   }
   async function load() {
-    try { const j = await api("/inbox"); rows = j.solicitudes; waOk = !!j.whatsappConfigurado; mailOk = !!j.configurado; render(); modeHint();
+    try { const j = await api("/inbox"); rows = j.solicitudes; waOk = !!j.whatsappConfigurado; mailOk = !!j.puedeResponder; render(); modeHint();
       $("inbox-hint").textContent = "Buzón: " + j.buzon + (j.configurado ? " · conexión configurada." : " · falta la contraseña de aplicación (GMAIL_APP_PASSWORD en iniciar.bat); puedes probar con «Simular solicitud».");
     } catch (e) { $("inbox-hint").textContent = e.message; }
   }

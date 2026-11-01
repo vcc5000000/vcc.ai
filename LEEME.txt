@@ -68,3 +68,11 @@ Respuesta por correo: "Responder por correo (PDF adjunto)" contesta al remitente
 usando SMTP de Gmail (smtp.gmail.com:465) con la misma GMAIL_APP_PASSWORD. La casilla automática ahora atiende y responde por correo.
 WhatsApp queda como opción adicional. Se omiten remitentes tipo no-reply y los correos propios (cabecera X-VCC50000-Reply) para evitar ciclos.
 El asunto de la respuesta es "Informe VCC50000 Insight — TICKER" (no se confunde con una solicitud).
+
+--- v16 ---
+Envío de correo por HTTPS (Brevo) para hostings que bloquean SMTP (Render gratis bloquea los puertos 25, 465 y 587).
+Variable BREVO_API_KEY en el servidor: si existe, las respuestas salen por la API de Brevo (remitente vcc5000000@gmail.com verificado en Brevo).
+Sin ella se usa SMTP de Gmail (sirve en tu computador, no en Render gratis). La lectura del buzón (IMAP, puerto 993) no se afecta.
+
+--- v17 ---
+El fragmento del mensaje del cliente ahora se lee limpio aunque el correo venga en formato MIME (multipart).

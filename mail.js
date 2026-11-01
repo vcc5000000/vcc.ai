@@ -35,9 +35,17 @@ function findPhone(...texts) {
   const m = /whatsapp:?\s*(\+?\d[\d\s\-]{7,16}\d)/i.exec(t) || /(\+\d[\d\s\-]{8,16}\d)/.exec(t) || /\b(\d{10,15})\b/.exec(t);
   return m ? m[1].replace(/[\s\-]/g, "") : "";
 }
-function bodyText(raw) {   // texto plano mínimo: quita base64/quoted-printable evidentes y etiquetas
+function bodyText(raw) {   // texto plano: si el cuerpo es MIME (multipart), toma la primera parte text/plain y la decodifica
   let t = String(raw || "");
-  if (/^[A-Za-z0-9+\/=\s]{40,}$/.test(t.trim())) { try { t = Buffer.from(t, "base64").toString("utf8"); } catch (_) {} }
+  const bm = /^--[^\r\n]+/.exec(t.trimStart());
+  if (bm) {
+    const parts = t.split(bm[0]);
+    const p = parts.find((x) => /content-type:\s*text\/plain/i.test(x)) || parts.find((x) => /content-type:\s*text\/html/i.test(x)) || "";
+    const i = p.search(/\r?\n\r?\n/), head = i >= 0 ? p.slice(0, i) : "";
+    t = i >= 0 ? p.slice(i).trim() : "";
+    if (/base64/i.test(head)) { try { t = Buffer.from(t.replace(/\s+/g, ""), "base64").toString("utf8"); } catch (_) {} }
+    else if (/quoted-printable/i.test(head)) t = t.replace(/=\r?\n/g, "").replace(/=([0-9A-Fa-f]{2})/g, (_, x) => String.fromCharCode(parseInt(x, 16)));
+  } else if (/^[A-Za-z0-9+\/=\s]{40,}$/.test(t.trim())) { try { t = Buffer.from(t, "base64").toString("utf8"); } catch (_) {} }
   return t.replace(/=\r?\n/g, "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 400);
 }
 
@@ -61,7 +69,7 @@ function smtpSend(cfg, from, to, raw) {
     const feed = () => { const lines = buf.split("\r\n"); // respuesta completa: última línea con "NNN " (sin guion)
       for (let i = 0; i < lines.length - 1; i++) if (/^\d{3} /.test(lines[i]) && waiter) { const code = +lines[i].slice(0, 3), txt = lines.slice(0, i + 1).join("\n"); buf = lines.slice(i + 1).join("\r\n"); const w = waiter; waiter = null; return w(code, txt); } };
     sock.on("data", (d) => { buf += d; feed(); });
-    sock.on("error", (e) => reject(new Error("No se pudo conectar al correo saliente (" + e.message + ").")));
+    sock.on("error", (e) => reject(new Error("No se pudo conectar al correo saliente (" + (e.code || e.message || (e.errors && e.errors.map((x) => x.code).join(",")) || "sin detalle") + ").")));
     const get = () => new Promise((res) => { waiter = (c, t) => res({ c, t }); feed(); });
     const step = async (cmd, ok) => { if (cmd !== null) sock.write(cmd + "\r\n"); const r = await get(); if (!ok.includes(r.c)) throw new Error("SMTP " + r.c + ": " + r.t.split("\n").pop().slice(4)); return r; };
     (async () => {

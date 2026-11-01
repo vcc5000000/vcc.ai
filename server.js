@@ -195,6 +195,7 @@ const STATIC = new Set(["index.html", "app.js", "data.js", "report.js", "store.j
 const TW = { sid: process.env.TWILIO_ACCOUNT_SID || "", token: process.env.TWILIO_AUTH_TOKEN || "", from: (process.env.TWILIO_WHATSAPP_FROM || "").replace(/^whatsapp:/, ""), base: process.env.TWILIO_API_BASE || "https://api.twilio.com" };
 const ACCESS_PASSWORD = process.env.ACCESS_PASSWORD || "";
 const mail = require("./mail.js"), crypto = require("crypto");
+const BREVO_KEY = process.env.BREVO_API_KEY || "", BREVO_URL = process.env.BREVO_API_URL || "https://api.brevo.com/v3/smtp/email";
 const SMTP = { host: process.env.SMTP_HOST || "smtp.gmail.com", port: +(process.env.SMTP_PORT || 465), plain: process.env.SMTP_PLAIN === "1" };
 const MAIL = { user: process.env.MAIL_USER || "vcc5000000@gmail.com", pass: process.env.GMAIL_APP_PASSWORD || "", host: process.env.IMAP_HOST || "imap.gmail.com", port: +(process.env.IMAP_PORT || 993), plain: process.env.IMAP_PLAIN === "1", days: 7 };
 const REQ_DIR = path.join(__dirname, "db", "requests");
@@ -244,11 +245,11 @@ const server = http.createServer(async (req, res) => {
       if (!r.ok) return send(502, { error: "WhatsApp rechazó el envío: " + (j.message || r.status) });
       return send(200, { enviado: true, sid: j.sid, to });
     }
-    if (url.pathname === "/api/health") return send(200, { ok: true, secContact: !!CONTACT, ai: !!ANTHROPIC_KEY, buzon: MAIL.user, buzonConfigurado: !!MAIL.pass, whatsappConfigurado: !!(TW.sid && TW.token && TW.from), version: "VCC50000-v15", carpeta: __dirname });
+    if (url.pathname === "/api/health") return send(200, { ok: true, secContact: !!CONTACT, ai: !!ANTHROPIC_KEY, buzon: MAIL.user, buzonConfigurado: !!MAIL.pass, whatsappConfigurado: !!(TW.sid && TW.token && TW.from), correoSalida: BREVO_KEY ? "brevo" : "smtp", version: "VCC50000-v17", carpeta: __dirname });
     if (url.pathname === "/api/draft" && req.method === "POST") {
       return send(200, await aiDraft(JSON.parse((await readBody(req, 300000)) || "{}")));
     }
-    if (url.pathname === "/api/inbox" && req.method === "GET") return send(200, { buzon: MAIL.user, configurado: !!MAIL.pass, solicitudes: reqList(), whatsappConfigurado: !!(TW.sid && TW.token && TW.from) });
+    if (url.pathname === "/api/inbox" && req.method === "GET") return send(200, { buzon: MAIL.user, configurado: !!MAIL.pass, solicitudes: reqList(), whatsappConfigurado: !!(TW.sid && TW.token && TW.from), puedeResponder: !!(MAIL.pass || BREVO_KEY), correoSalida: BREVO_KEY ? "brevo" : "smtp" });
     if (url.pathname === "/api/inbox/check" && req.method === "POST") {
       if (!MAIL.pass) return send(400, { error: "Falta GMAIL_APP_PASSWORD en iniciar.bat (contraseña de aplicación de " + MAIL.user + "). Mientras tanto puedes probar con un asunto." });
       const msgs = await mail.fetchRecent({ host: MAIL.host, port: MAIL.port, plain: MAIL.plain, user: MAIL.user, pass: MAIL.pass, days: MAIL.days });
@@ -263,7 +264,7 @@ const server = http.createServer(async (req, res) => {
       reqSave(r); return send(200, { solicitud: r, solicitudes: reqList() });
     }
     if (url.pathname === "/api/inbox/reply" && req.method === "POST") {   // responde al correo de origen con el informe en PDF adjunto
-      if (!MAIL.pass) return send(400, { error: "Falta GMAIL_APP_PASSWORD: sin él no se puede responder por correo." });
+      if (!MAIL.pass && !BREVO_KEY) return send(400, { error: "Falta GMAIL_APP_PASSWORD o BREVO_API_KEY: sin ellos no se puede responder por correo." });
       const b = JSON.parse((await readBody(req, 20000)) || "{}"), idc = String(b.id || "").replace(/[^a-f0-9\-]/gi, ""), f = path.join(REQ_DIR, idc + ".json");
       if (!idc || !fs.existsSync(f)) return send(404, { error: "Solicitud no encontrada." });
       const r = JSON.parse(fs.readFileSync(f, "utf8"));
@@ -273,8 +274,19 @@ const server = http.createServer(async (req, res) => {
       const link = pdf ? baseUrl() + "/r/" + tok + ".pdf" : (/^[a-f0-9]{24}$/.test(tok) ? baseUrl() + "/r/" + tok : "");
       const text = "Hola,\n\nGracias por tu solicitud de análisis financiero (" + r.ticker + "). " + (pdf ? "Adjuntamos el informe en PDF." : "Aquí tienes el informe.") + "\n\n" + String(b.resumen || "").slice(0, 600) + (link ? "\n\nTambién puedes verlo en línea: " + link : "") +
         "\n\nInformación de apoyo analítico; no constituye asesoría de inversión ni recomendación de compra o venta. Verifica las cifras contra el filing oficial.\n\nVCC50000 Insight";
-      const raw = mail.buildReply({ from: MAIL.user, to: r.responderA, subject: "Informe VCC50000 Insight — " + r.ticker, text, pdf, filename: "VCC50000_Insight_" + r.ticker + ".pdf", inReplyTo: r.idMensaje });
-      await mail.smtpSend({ host: SMTP.host, port: SMTP.port, plain: SMTP.plain, user: MAIL.user, pass: MAIL.pass }, MAIL.user, r.responderA, raw);
+      const subject = "Informe VCC50000 Insight — " + r.ticker, filename = "VCC50000_Insight_" + r.ticker + ".pdf";
+      if (BREVO_KEY) {   // por HTTPS (funciona en hostings que bloquean SMTP, como Render gratis)
+        const body = { sender: { name: "VCC50000 Insight", email: MAIL.user }, replyTo: { email: MAIL.user }, to: [{ email: r.responderA }], subject, textContent: text,
+          headers: Object.assign({ "X-VCC50000-Reply": "1", "Auto-Submitted": "auto-replied" }, r.idMensaje ? { "In-Reply-To": r.idMensaje } : {}) };
+        if (pdf) body.attachment = [{ name: filename, content: pdf.toString("base64") }];
+        const resp = await fetch(BREVO_URL, { method: "POST", headers: { "api-key": BREVO_KEY, "content-type": "application/json", accept: "application/json" }, body: JSON.stringify(body) });
+        const jr = await resp.json().catch(() => ({}));
+        if (!resp.ok) return send(502, { error: "Brevo rechazó el envío: " + (jr.message || resp.status) + (/sender|valid/i.test(jr.message || "") ? " (verifica el remitente " + MAIL.user + " en Brevo)" : "") });
+      } else {
+        const raw = mail.buildReply({ from: MAIL.user, to: r.responderA, subject, text, pdf, filename, inReplyTo: r.idMensaje });
+        try { await mail.smtpSend({ host: SMTP.host, port: SMTP.port, plain: SMTP.plain, user: MAIL.user, pass: MAIL.pass }, MAIL.user, r.responderA, raw); }
+        catch (e) { return send(502, { error: e.message + (/conectar|tiempo/i.test(e.message) ? " Muchos hostings (Render gratis) bloquean el correo saliente por SMTP: configura BREVO_API_KEY para enviar por HTTPS." : "") }); }
+      }
       r.respondida = new Date().toISOString(); r.estado = "atendida"; reqSave(r);
       return send(200, { enviado: true, a: r.responderA, solicitud: r });
     }
@@ -315,7 +327,7 @@ if (require.main === module) {
     throw e;
   });
   server.listen(PORT, () => {
-    console.log("VCC50000 v15 — carpeta: " + __dirname);
+    console.log("VCC50000 v17 — carpeta: " + __dirname);
     console.log("Página y API en http://localhost:" + PORT);
     if (!CONTACT) console.log("AVISO: define SEC_CONTACT para consultar la SEC (se usará solo el catálogo local).");
   });

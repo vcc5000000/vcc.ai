@@ -7,7 +7,7 @@
    campos que digita el analista. No incluye marcas ni textos de terceros.
    ============================================================ */
 (function () {
-  window.VCC_REPORT_V = 15;
+  window.VCC_REPORT_V = 17;
   const REPORT_CSS = `
   .report{font-family:"Segoe UI",Arial,sans-serif;color:#0b2a4a;background:#fff;line-height:1.45;font-size:13px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .report *{box-sizing:border-box}
