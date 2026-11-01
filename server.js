@@ -245,7 +245,7 @@ const server = http.createServer(async (req, res) => {
       if (!r.ok) return send(502, { error: "WhatsApp rechazó el envío: " + (j.message || r.status) });
       return send(200, { enviado: true, sid: j.sid, to });
     }
-    if (url.pathname === "/api/health") return send(200, { ok: true, secContact: !!CONTACT, ai: !!ANTHROPIC_KEY, buzon: MAIL.user, buzonConfigurado: !!MAIL.pass, whatsappConfigurado: !!(TW.sid && TW.token && TW.from), correoSalida: BREVO_KEY ? "brevo" : "smtp", version: "VCC50000-v17", carpeta: __dirname });
+    if (url.pathname === "/api/health") return send(200, { ok: true, secContact: !!CONTACT, ai: !!ANTHROPIC_KEY, buzon: MAIL.user, buzonConfigurado: !!MAIL.pass, whatsappConfigurado: !!(TW.sid && TW.token && TW.from), correoSalida: BREVO_KEY ? "brevo" : "smtp", version: "VCC50000-v18", carpeta: __dirname });
     if (url.pathname === "/api/draft" && req.method === "POST") {
       return send(200, await aiDraft(JSON.parse((await readBody(req, 300000)) || "{}")));
     }

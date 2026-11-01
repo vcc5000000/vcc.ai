@@ -1,10 +1,20 @@
 "use strict";
 /* VCC50000 — genera un PDF real (texto, tablas e imágenes de las gráficas) a partir del informe que se ve en pantalla.
    Usa pdf-lib (vendor/pdf-lib.min.js). Devuelve el PDF en base64. */
+/* Carga pdf-lib: primero la copia local (vendor/), y si no está publicada, desde CDN públicos. */
+window.ensurePdfLib = async function () {
+  if (window.PDFLib) return;
+  const srcs = ["vendor/pdf-lib.min.js", "https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js", "https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"];
+  for (const src of srcs) {
+    await new Promise((res) => { const s = document.createElement("script"); s.src = src; s.async = true; s.onload = res; s.onerror = res; document.head.appendChild(s); });
+    if (window.PDFLib) return;
+  }
+  throw new Error("No se pudo cargar la librería de PDF (pdf-lib): revisa la conexión a internet.");
+};
 window.makeReportPdf = async function () {
   const root = document.querySelector("#report-view .report");
   if (!root) throw new Error("No hay informe en pantalla.");
-  if (!window.PDFLib) throw new Error("Falta la librería de PDF (vendor/pdf-lib.min.js).");
+  await window.ensurePdfLib();
   const { PDFDocument, StandardFonts, rgb } = PDFLib;
   const doc = await PDFDocument.create();
   const F = await doc.embedFont(StandardFonts.Helvetica), FB = await doc.embedFont(StandardFonts.HelveticaOblique ? StandardFonts.HelveticaBold : StandardFonts.HelveticaBold), FI = await doc.embedFont(StandardFonts.HelveticaOblique);
