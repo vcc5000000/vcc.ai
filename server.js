@@ -208,6 +208,30 @@ function toRequest(m) {
   const id = crypto.createHash("sha1").update(m.messageId || (m.from + m.subject + m.date + m.uid)).digest("hex").slice(0, 16);
   return { id, ticker: p.ticker, empresa: p.empresa, asunto: m.subject, remitente: m.from, whatsapp: m.phone || "", fragmento: m.snippet || "", recibida: m.date || new Date().toISOString(), capturada: new Date().toISOString(), estado: "recibida", canal: m.canal || "correo", responderA: mail.parseAddress(m.replyTo, m.from), idMensaje: m.messageId || "" };
 }
+/* Correo saliente: Brevo por HTTPS si hay BREVO_API_KEY (Render gratis bloquea SMTP); si no, SMTP de Gmail.
+   Devuelve { via, messageId } o lanza un error con un mensaje claro para la pantalla. */
+async function sendMailOut(o) {
+  if (BREVO_KEY) {
+    const body = { sender: { name: "VCC50000 Insight", email: MAIL.user }, replyTo: { email: MAIL.user }, to: [{ email: o.to }], subject: o.subject, textContent: o.text,
+      headers: Object.assign({ "X-VCC50000-Reply": "1", "Auto-Submitted": "auto-replied" }, o.inReplyTo ? { "In-Reply-To": o.inReplyTo, References: o.inReplyTo } : {}) };
+    if (o.pdf) body.attachment = [{ name: o.filename, content: o.pdf.toString("base64") }];
+    let resp;
+    try { resp = await fetch(BREVO_URL, { method: "POST", headers: { "api-key": BREVO_KEY, "content-type": "application/json", accept: "application/json" }, body: JSON.stringify(body) }); }
+    catch (e) { throw httpError(502, "No se pudo conectar con Brevo (" + (e.cause && e.cause.code || e.message) + ")."); }
+    const jr = await resp.json().catch(() => ({}));
+    if (!resp.ok) {
+      const msg = String(jr.message || resp.status);
+      const hint = resp.status === 401 ? " Revisa que BREVO_API_KEY en Render sea la clave completa y vigente." : /sender|valid/i.test(msg) ? " Verifica el remitente " + MAIL.user + " en Brevo (Senders, domains & IPs)." : /ip/i.test(msg) ? " En Brevo desactiva la restricción de IP autorizadas o agrega las de Render." : "";
+      throw httpError(502, "Brevo rechazó el envío: " + msg.replace(/[.\s]*$/, ".") + hint);
+    }
+    return { via: "brevo", messageId: jr.messageId || "" };
+  }
+  if (!MAIL.pass) throw httpError(400, "No hay correo de salida: define BREVO_API_KEY (en Render) o GMAIL_APP_PASSWORD (en tu computador).");
+  const raw = mail.buildReply({ from: MAIL.user, to: o.to, subject: o.subject, text: o.text, pdf: o.pdf, filename: o.filename, inReplyTo: o.inReplyTo });
+  try { await mail.smtpSend({ host: SMTP.host, port: SMTP.port, plain: SMTP.plain, user: MAIL.user, pass: MAIL.pass }, MAIL.user, o.to, raw); }
+  catch (e) { throw httpError(502, e.message + (/conectar|tiempo/i.test(e.message) ? " Muchos hostings (Render gratis) bloquean el correo saliente por SMTP: configura BREVO_API_KEY para enviar por HTTPS." : "")); }
+  return { via: "smtp", messageId: "" };
+}
 const DB_DIR = path.join(__dirname, "db"), DB_TABLES = new Set(["financials", "analysis", "reports"]);
 const dbFile = (t, k) => path.join(DB_DIR, t, k.replace(/[^A-Za-z0-9._\-]/g, "_") + ".json");
 
@@ -245,11 +269,11 @@ const server = http.createServer(async (req, res) => {
       if (!r.ok) return send(502, { error: "WhatsApp rechazó el envío: " + (j.message || r.status) });
       return send(200, { enviado: true, sid: j.sid, to });
     }
-    if (url.pathname === "/api/health") return send(200, { ok: true, secContact: !!CONTACT, ai: !!ANTHROPIC_KEY, buzon: MAIL.user, buzonConfigurado: !!MAIL.pass, whatsappConfigurado: !!(TW.sid && TW.token && TW.from), correoSalida: BREVO_KEY ? "brevo" : "smtp", version: "VCC50000-v18", carpeta: __dirname });
+    if (url.pathname === "/api/health") return send(200, { ok: true, secContact: !!CONTACT, ai: !!ANTHROPIC_KEY, buzon: MAIL.user, buzonConfigurado: !!MAIL.pass, whatsappConfigurado: !!(TW.sid && TW.token && TW.from), correoSalida: BREVO_KEY ? "brevo" : (MAIL.pass ? "smtp" : "ninguno"), version: "VCC50000-v19", carpeta: __dirname });
     if (url.pathname === "/api/draft" && req.method === "POST") {
       return send(200, await aiDraft(JSON.parse((await readBody(req, 300000)) || "{}")));
     }
-    if (url.pathname === "/api/inbox" && req.method === "GET") return send(200, { buzon: MAIL.user, configurado: !!MAIL.pass, solicitudes: reqList(), whatsappConfigurado: !!(TW.sid && TW.token && TW.from), puedeResponder: !!(MAIL.pass || BREVO_KEY), correoSalida: BREVO_KEY ? "brevo" : "smtp" });
+    if (url.pathname === "/api/inbox" && req.method === "GET") return send(200, { buzon: MAIL.user, configurado: !!MAIL.pass, solicitudes: reqList(), whatsappConfigurado: !!(TW.sid && TW.token && TW.from), puedeResponder: !!(MAIL.pass || BREVO_KEY), correoSalida: BREVO_KEY ? "brevo" : (MAIL.pass ? "smtp" : "ninguno") });
     if (url.pathname === "/api/inbox/check" && req.method === "POST") {
       if (!MAIL.pass) return send(400, { error: "Falta GMAIL_APP_PASSWORD en iniciar.bat (contraseña de aplicación de " + MAIL.user + "). Mientras tanto puedes probar con un asunto." });
       const msgs = await mail.fetchRecent({ host: MAIL.host, port: MAIL.port, plain: MAIL.plain, user: MAIL.user, pass: MAIL.pass, days: MAIL.days });
@@ -275,25 +299,24 @@ const server = http.createServer(async (req, res) => {
       const text = "Hola,\n\nGracias por tu solicitud de análisis financiero (" + r.ticker + "). " + (pdf ? "Adjuntamos el informe en PDF." : "Aquí tienes el informe.") + "\n\n" + String(b.resumen || "").slice(0, 600) + (link ? "\n\nTambién puedes verlo en línea: " + link : "") +
         "\n\nInformación de apoyo analítico; no constituye asesoría de inversión ni recomendación de compra o venta. Verifica las cifras contra el filing oficial.\n\nVCC50000 Insight";
       const subject = "Informe VCC50000 Insight — " + r.ticker, filename = "VCC50000_Insight_" + r.ticker + ".pdf";
-      if (BREVO_KEY) {   // por HTTPS (funciona en hostings que bloquean SMTP, como Render gratis)
-        const body = { sender: { name: "VCC50000 Insight", email: MAIL.user }, replyTo: { email: MAIL.user }, to: [{ email: r.responderA }], subject, textContent: text,
-          headers: Object.assign({ "X-VCC50000-Reply": "1", "Auto-Submitted": "auto-replied" }, r.idMensaje ? { "In-Reply-To": r.idMensaje } : {}) };
-        if (pdf) body.attachment = [{ name: filename, content: pdf.toString("base64") }];
-        const resp = await fetch(BREVO_URL, { method: "POST", headers: { "api-key": BREVO_KEY, "content-type": "application/json", accept: "application/json" }, body: JSON.stringify(body) });
-        const jr = await resp.json().catch(() => ({}));
-        if (!resp.ok) return send(502, { error: "Brevo rechazó el envío: " + (jr.message || resp.status) + (/sender|valid/i.test(jr.message || "") ? " (verifica el remitente " + MAIL.user + " en Brevo)" : "") });
-      } else {
-        const raw = mail.buildReply({ from: MAIL.user, to: r.responderA, subject, text, pdf, filename, inReplyTo: r.idMensaje });
-        try { await mail.smtpSend({ host: SMTP.host, port: SMTP.port, plain: SMTP.plain, user: MAIL.user, pass: MAIL.pass }, MAIL.user, r.responderA, raw); }
-        catch (e) { return send(502, { error: e.message + (/conectar|tiempo/i.test(e.message) ? " Muchos hostings (Render gratis) bloquean el correo saliente por SMTP: configura BREVO_API_KEY para enviar por HTTPS." : "") }); }
-      }
-      r.respondida = new Date().toISOString(); r.estado = "atendida"; reqSave(r);
-      return send(200, { enviado: true, a: r.responderA, solicitud: r });
+      const out = await sendMailOut({ to: r.responderA, subject, text, pdf, filename, inReplyTo: r.idMensaje });
+      r.respondida = new Date().toISOString(); r.estado = "atendida"; r.respuestaVia = out.via; r.pdfAdjunto = !!pdf; reqSave(r);
+      return send(200, { enviado: true, a: r.responderA, via: out.via, pdfAdjunto: !!pdf, solicitud: r });
+    }
+    if (url.pathname === "/api/mail/test" && req.method === "POST") {   // correo de prueba para validar Brevo (o SMTP) sin tocar solicitudes
+      const b = JSON.parse((await readBody(req, 5000)) || "{}"), to = mail.parseAddress(String(b.to || "")) || MAIL.user;
+      const out = await sendMailOut({ to, subject: "Prueba de correo VCC50000 Insight", text: "Este es un correo de prueba de VCC50000.\n\nSi lo recibes, la respuesta automática por correo está lista.\n\nEnviado el " + new Date().toISOString() + "." });
+      return send(200, { enviado: true, a: to, via: out.via, messageId: out.messageId });
     }
     if (url.pathname === "/api/inbox/status" && req.method === "POST") {
       const b = JSON.parse((await readBody(req, 5000)) || "{}"); const f = path.join(REQ_DIR, String(b.id || "").replace(/[^a-f0-9\-]/gi, "") + ".json");
       if (!fs.existsSync(f)) return send(404, { error: "Solicitud no encontrada." });
-      const r = JSON.parse(fs.readFileSync(f, "utf8")); r.estado = ["recibida", "en atención", "atendida", "error"].includes(b.estado) ? b.estado : r.estado; reqSave(r); return send(200, { solicitud: r });
+      const r = JSON.parse(fs.readFileSync(f, "utf8")); r.estado = ["recibida", "en atención", "atendida", "error"].includes(b.estado) ? b.estado : r.estado;
+      if (typeof b.whatsapp === "string") {   // número escrito por el analista cuando la solicitud no lo traía
+        const w = b.whatsapp.replace(/\D/g, ""); if (w && (w.length < 8 || w.length > 15)) return send(400, { error: "Número de WhatsApp no válido: usa el código de país y el número, por ejemplo 573001234567." });
+        r.whatsapp = w;
+      }
+      reqSave(r); return send(200, { solicitud: r });
     }
     if (url.pathname.startsWith("/api/db/")) {
       const [, , , table, rawKey] = url.pathname.split("/"); const key = decodeURIComponent(rawKey || "");
@@ -327,7 +350,7 @@ if (require.main === module) {
     throw e;
   });
   server.listen(PORT, () => {
-    console.log("VCC50000 v17 — carpeta: " + __dirname);
+    console.log("VCC50000 v19 — carpeta: " + __dirname);
     console.log("Página y API en http://localhost:" + PORT);
     if (!CONTACT) console.log("AVISO: define SEC_CONTACT para consultar la SEC (se usará solo el catálogo local).");
   });

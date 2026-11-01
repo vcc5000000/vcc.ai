@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>VCC50000 · Análisis financiero</title>
-  <link rel="stylesheet" href="styles.css?v=18">
+  <link rel="stylesheet" href="styles.css?v=19">
 </head>
 <body>
   <header class="hero">
@@ -312,6 +312,12 @@
         </div>
         <div class="row"><button type="button" class="btn small" id="btn-inbox-test">Simular solicitud</button></div>
       </details>
+      <details class="rp-group"><summary>Probar el correo de salida <span class="opt">(Brevo o SMTP)</span></summary>
+        <div class="grid">
+          <label>Enviar a <input type="email" id="mail-test-to" placeholder="vcc5000000@gmail.com (si lo dejas vacío)"></label>
+        </div>
+        <div class="row"><button type="button" class="btn small" id="btn-mail-test">Enviar correo de prueba</button></div>
+      </details>
     </section>
   </main>
 
@@ -319,17 +325,17 @@
     <div class="wrap foot-in">
       <strong>VCC50000</strong>
       <p>Compañía constituida en Delaware, EE. UU. Servicios de análisis financiero.</p>
-      <p class="fine" id="ver-stamp">Versión de la página: v18</p>
+      <p class="fine" id="ver-stamp">Versión de la página: v19</p>
       <p class="fine">La información es de apoyo analítico y no constituye asesoría de inversión ni recomendación de compra o venta. Verifica las cifras contra el filing oficial. Ilustraciones vectoriales originales.</p>
     </div>
   </footer>
 
-  <script src="data.js?v=18"></script>
-  <script src="app.js?v=18"></script>
-  <script src="store.js?v=18"></script>
-  <script src="report.js?v=18"></script>
-  <script src="pdfreport.js?v=18"></script>
-  <script src="inbox.js?v=18"></script>
-<script>window.addEventListener("load",function(){if(window.VCC_REPORT_V!==17){var b=document.createElement("div");b.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99;background:#c2362b;color:#fff;padding:10px 16px;font:600 14px sans-serif;text-align:center";b.textContent="Tu navegador tiene archivos antiguos. Cierra la ventana negra, vuelve a ejecutar iniciar.bat con los archivos nuevos y pulsa Ctrl+F5.";document.body.appendChild(b);}});</script>
+  <script src="data.js?v=19"></script>
+  <script src="app.js?v=19"></script>
+  <script src="store.js?v=19"></script>
+  <script src="report.js?v=19"></script>
+  <script src="pdfreport.js?v=19"></script>
+  <script src="inbox.js?v=19"></script>
+<script>window.addEventListener("load",function(){if(window.VCC_REPORT_V!==19){var b=document.createElement("div");b.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99;background:#c2362b;color:#fff;padding:10px 16px;font:600 14px sans-serif;text-align:center";b.textContent="Tu navegador tiene archivos antiguos. Cierra la ventana negra, vuelve a ejecutar iniciar.bat con los archivos nuevos y pulsa Ctrl+F5.";document.body.appendChild(b);}});</script>
 </body>
 </html>

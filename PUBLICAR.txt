@@ -9,3 +9,15 @@ Comando (con gcloud instalado, desde esta carpeta):
 Limitaciones del MVP: la carpeta db se borra al reiniciar el servicio (los datos también quedan en el navegador de cada analista);
 las solicitudes de la bandeja se vuelven a capturar al revisar el buzón. Siguiente fase: Firestore e inicio de sesión.
 Dominio propio: Cloud Run > Administrar dominios personalizados.
+
+PUBLICACIÓN ACTUAL: RENDER (plan gratuito) desde GitHub vcc5000000/vcc.ai
+Variables de entorno en Render > Environment (nunca en el código):
+  BREVO_API_KEY       clave de API de Brevo (correo de salida por HTTPS)
+  GMAIL_APP_PASSWORD  contraseña de aplicación de vcc5000000@gmail.com (lectura del buzón por IMAP)
+  SEC_CONTACT         "Nombre correo@dominio.com" (User-Agent que exige la SEC)
+  ACCESS_PASSWORD     clave de acceso a la página (opcional)
+  ANTHROPIC_API_KEY   (opcional, botón "Redactar con IA")
+  TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_WHATSAPP_FROM  (opcional, WhatsApp automático)
+  PUBLIC_URL          https://vcc-ai.onrender.com (opcional, para los enlaces de los informes)
+Comprobación: https://vcc-ai.onrender.com/api/health debe decir "version":"VCC50000-v19" y "correoSalida":"brevo".
+

@@ -166,3 +166,6 @@ input[type="date"] { width: 100%; margin-top: 6px; padding: 10px 13px; border: 1
 label.inline{display:inline-flex;align-items:center;gap:6px;font-size:13px}
 .chip.err{background:#fde8e6;color:#c2362b}
 .inbox-table td .btn{white-space:normal;text-align:left}
+
+.linkbtn{background:none;border:0;padding:2px 0;margin-top:2px;color:inherit;text-decoration:underline;font:inherit;font-size:.82em;cursor:pointer;opacity:.8}
+.linkbtn:hover{opacity:1}

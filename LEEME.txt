@@ -76,3 +76,19 @@ Sin ella se usa SMTP de Gmail (sirve en tu computador, no en Render gratis). La 
 
 --- v17 ---
 El fragmento del mensaje del cliente ahora se lee limpio aunque el correo venga en formato MIME (multipart).
+
+--- v19 (cierre MVP1: correo con Brevo y WhatsApp) ---
+Correo de respuesta:
+- Con BREVO_API_KEY en Render, "Responder por correo (PDF adjunto)" sale por Brevo. Ya no pide GMAIL_APP_PASSWORD para responder
+  (esa contraseña solo hace falta para LEER el buzón).
+- Nuevo en el paso 5: "Probar el correo de salida" envía un correo de prueba (por defecto a vcc5000000@gmail.com) y muestra
+  el error exacto de Brevo si algo falla (clave, remitente no verificado, restricción de IP).
+- El aviso tras responder dice si el PDF fue adjunto o si solo se envió el enlace.
+- La librería de PDF la carga pdfreport.js desde jsDelivr si falta la carpeta vendor (cambio de la v18).
+WhatsApp:
+- "Enviar PDF por WhatsApp" aparece en todas las solicitudes. Si no trae número, lo pide (código de país + número, ej. 573001234567)
+  y lo guarda; "Cambiar número" lo corrige. Abre WhatsApp con el mensaje y el enlace al PDF; el analista pulsa Enviar.
+- "WhatsApp automático (Twilio)" aparece solo si TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN y TWILIO_WHATSAPP_FROM están configurados.
+- Ojo en Render gratis: la carpeta db se borra al reiniciar o dormir el servicio; el enlace /r/... del PDF deja de funcionar
+  después de eso. El PDF adjunto al correo no se pierde.
+
