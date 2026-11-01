@@ -1,0 +1,45 @@
+PÁGINA + CONEXIÓN A LA SEC
+==========================
+Archivos (todos en la misma carpeta): index.html, styles.css, app.js, report.js, data.js, server.js, iniciar.bat
+
+Arranque en Windows
+1. Instala Node.js 18+ (https://nodejs.org).
+2. Edita iniciar.bat: pon tu nombre y correo en SEC_CONTACT (la SEC lo exige; no hay API key).
+3. Doble clic en iniciar.bat. Se abre http://localhost:3001.
+
+Cómo decide la fuente (server.js)
+- Tickers de la SEC (SLB, HAL, BKR, WFRD, EC, AAPL...): consulta SEC EDGAR (companyfacts, 10-K/20-F).
+- Privadas colombianas (SURENCO, BKRCO, HALCO, GUACAM): catálogo local data.js (PDF de EMIS).
+- Si la SEC falla, usa el catálogo local y lo avisa en pantalla.
+- Sin servidor (abrir index.html con doble clic): la página usa solo data.js.
+
+Prueba rápida de la conexión
+  http://localhost:3001/api/health                 -> {"ok":true,"secContact":true}
+  http://localhost:3001/api/financials?ticker=SLB  -> JSON con "via":"edgar" si la SEC respondió
+
+Informe (paso 4)
+- Tras "Cargar estados financieros", el paso 4 permite completar datos de mercado, pares, resumen, casos favorable/adverso, SWOT, llamada de resultados y noticias.
+- "Generar informe" lo muestra en línea. Descargas: PDF (diálogo de impresión > Guardar como PDF), HTML, CSV (Excel) y JSON.
+- Balance, flujo de caja, EBITDA y EPS aparecen cuando la SEC los reporta en XBRL; con el catálogo de PDF solo hay estado de resultados.
+
+Agente de redacción (opcional)
+- Con ANTHROPIC_API_KEY en iniciar.bat, el botón "Redactar con IA" pide a Claude un resumen, casos favorable/adverso y SWOT usando SOLO las cifras cargadas.
+- Sin clave, el informe preliminar se arma igual con reglas automáticas y tú lo enriqueces a mano.
+- La clave vive solo en el servidor (nunca en la página). Revisa siempre el texto antes de compartirlo.
+
+--- v7 ---
+Novedades: informe con análisis financiero (cascada del P&G, ratios por año, análisis vertical y horizontal, comentario editable),
+balance y flujo de caja para las filiales del catálogo (PDF). Sello "Versión de la página: v7" al pie y aviso rojo si el navegador
+carga archivos antiguos. Para verificar: la ventana negra debe decir "VCC50000 v7". Si no, cierra esa ventana y ejecuta iniciar.bat de esta carpeta.
+
+--- v8 ---
+Base de datos local: los estados cargados, el análisis vertical, el horizontal, los ratios y cada informe se guardan
+(en el navegador y en la carpeta "db" junto a server.js). El informe lee de ahí; si algo falta, lo calcula y lo guarda.
+Paso 4: botones 1 Cargar datos, 2 Análisis vertical, 3 Análisis horizontal, 4 Ratios clave. "Volver a consultar la fuente" reemplaza lo guardado.
+La ventana negra debe decir "VCC50000 v8".
+
+--- v9 ---
+Paso 5, "Solicitudes de clientes (WhatsApp -> correo)": lee el buzón MAIL_USER (por defecto vcc5000000@gmail.com) por IMAP, solo lectura.
+Acepta asuntos "Análisis financiero:TICKER" (con o sin texto después, ej. "Análisis financiero:EC de Ecopetrol"); los demás se ignoran.
+Necesita GMAIL_APP_PASSWORD en iniciar.bat (contraseña de aplicación de Google). Sin ella puedes usar "Simular solicitud".
+Las solicitudes quedan en la carpeta db/requests. "Atender solicitud de cliente" lleva el ticker al informe (requiere registro en el paso 1).

@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VCC50000 · Análisis financiero</title>
+  <link rel="stylesheet" href="styles.css?v=9">
+</head>
+<body>
+  <header class="hero">
+    <!-- Ilustración vectorial original: atardecer sobre el Golfo, palmeras y skyline de Florida -->
+    <svg class="hero-art" viewBox="0 0 1440 600" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+      <defs>
+        <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#2b3a8c"/><stop offset=".30" stop-color="#b8479a"/><stop offset=".55" stop-color="#ff6b5b"/><stop offset=".78" stop-color="#ffb627"/><stop offset="1" stop-color="#ffe2a6"/>
+        </linearGradient>
+        <linearGradient id="sea" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#ff9a6b"/><stop offset=".25" stop-color="#16b6bd"/><stop offset="1" stop-color="#075a7a"/>
+        </linearGradient>
+        <radialGradient id="sunglow" cx=".5" cy=".5" r=".5">
+          <stop offset="0" stop-color="#fff3c4" stop-opacity=".95"/><stop offset=".45" stop-color="#ffd166" stop-opacity=".5"/><stop offset="1" stop-color="#ffb627" stop-opacity="0"/>
+        </radialGradient>
+        <linearGradient id="curve" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stop-color="#ffffff" stop-opacity="0"/><stop offset="1" stop-color="#ffffff"/>
+        </linearGradient>
+        <g id="frond"><path d="M0 0 C30 -26 70 -30 108 -6 C74 -12 40 -8 0 0z"/><path d="M0 0 C34 -8 72 4 100 30 C66 20 34 12 0 0z" opacity=".85"/></g>
+        <g id="palm">
+          <path d="M0 0 C6 -90 -6 -170 14 -250 L24 -248 C6 -170 18 -90 14 0z"/>
+          <g transform="translate(19 -248)">
+            <use href="#frond" transform="rotate(-10)"/><use href="#frond" transform="rotate(-48)"/><use href="#frond" transform="rotate(-86)"/>
+            <use href="#frond" transform="rotate(-124) scale(-1 1)"/><use href="#frond" transform="rotate(-160) scale(-1 1)"/>
+            <use href="#frond" transform="scale(-1 1) rotate(-10)"/><use href="#frond" transform="scale(-1 1) rotate(-52)"/>
+          </g>
+        </g>
+      </defs>
+      <rect width="1440" height="600" fill="url(#sky)"/>
+      <circle class="sun" cx="1010" cy="330" r="190" fill="url(#sunglow)"/>
+      <circle cx="1010" cy="330" r="62" fill="#fff0b8"/>
+      <g fill="#fff" opacity=".28"><ellipse cx="300" cy="150" rx="150" ry="14"/><ellipse cx="420" cy="180" rx="110" ry="10"/><ellipse cx="760" cy="120" rx="170" ry="12"/><ellipse cx="1240" cy="170" rx="140" ry="12"/></g>
+      <polyline class="curve" fill="none" stroke="url(#curve)" stroke-width="5" stroke-linecap="round" points="560,330 700,310 820,322 940,262 1060,240 1180,168 1300,120 1400,84"/>
+      <g fill="#fff"><circle cx="940" cy="262" r="6"/><circle cx="1180" cy="168" r="6"/><circle cx="1400" cy="84" r="7"/></g>
+      <rect y="372" width="1440" height="228" fill="url(#sea)"/>
+      <g fill="#ffe9a8" opacity=".55" class="glitter"><rect x="940" y="384" width="140" height="4" rx="2"/><rect x="960" y="398" width="100" height="4" rx="2"/><rect x="978" y="414" width="64" height="4" rx="2"/><rect x="990" y="432" width="40" height="4" rx="2"/></g>
+      <g fill="none" stroke="#fff" stroke-opacity=".25" stroke-width="2" class="waves">
+        <path d="M0 470 q60 -12 120 0 t120 0 t120 0 t120 0 t120 0 t120 0 t120 0 t120 0 t120 0 t120 0 t120 0 t120 0 t120 0"/>
+        <path d="M0 520 q70 -14 140 0 t140 0 t140 0 t140 0 t140 0 t140 0 t140 0 t140 0 t140 0 t140 0 t140 0"/>
+      </g>
+      <g fill="#3a2a6b" opacity=".85">
+        <rect x="520" y="326" width="22" height="48"/><rect x="546" y="308" width="18" height="66"/><rect x="568" y="334" width="26" height="40"/>
+        <rect x="598" y="296" width="20" height="78"/><rect x="622" y="322" width="24" height="52"/><rect x="650" y="340" width="30" height="34"/>
+        <rect x="1180" y="330" width="24" height="44"/><rect x="1208" y="310" width="20" height="64"/><rect x="1232" y="336" width="28" height="38"/>
+      </g>
+      <path d="M0 372 q120 -16 260 0 t300 0 T1000 372 T1440 372 V380 H0z" fill="#fbd9a0" opacity=".9"/>
+      <g fill="#0b2a4a"><use href="#palm" transform="translate(120 600) scale(1.25)"/><use href="#palm" transform="translate(300 600) scale(.8) rotate(4)"/><use href="#palm" transform="translate(1330 600) scale(1.35) scale(-1 1)"/></g>
+    </svg>
+    <div class="hero-shade"></div>
+    <nav class="topnav wrap" aria-label="Principal">
+      <a class="brand" href="#top" aria-label="VCC50000, inicio">
+        <svg viewBox="0 0 40 40" width="38" height="38" aria-hidden="true"><circle cx="20" cy="20" r="19" fill="#0b2a4a"/><circle cx="20" cy="17" r="7" fill="#ffb627"/><path d="M4 25q4-4 8 0t8 0 8 0 8 0" fill="none" stroke="#2dd4d8" stroke-width="2.4" stroke-linecap="round"/><path d="M6 31q4-4 8 0t8 0 8 0 6 0" fill="none" stroke="#ff7a59" stroke-width="2.4" stroke-linecap="round"/></svg>
+        <span>VCC50000</span>
+      </a>
+      <span class="nav-tag">Delaware, USA · Financial Analytics</span>
+    </nav>
+    <div class="wrap hero-in" id="top">
+      <p class="eyebrow">VCC50000 · Análisis financiero para Estados Unidos</p>
+      <h1>Estados financieros que se convierten en <span>decisiones de junta</span></h1>
+      <p class="lead">Elige una compañía por ticker, carga sus estados financieros desde fuentes oficiales y presenta gráficas interactivas de ingresos, márgenes y crecimiento.</p>
+      <div class="hero-stats">
+        <div><strong id="stat-companies">6</strong><span>compañías cargadas</span></div>
+        <div><strong id="stat-years">5</strong><span>años de historia</span></div>
+        <div><strong>SEC EDGAR</strong><span>fuente oficial de EE. UU.</span></div>
+        <div><strong>USD · COP</strong><span>monedas soportadas</span></div>
+      </div>
+      <a class="btn primary big" href="#step-register">Comenzar el análisis</a>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <!-- PASO 1: REGISTRO -->
+    <section class="card" id="step-register" aria-labelledby="t-register">
+      <div class="card-head"><span class="badge">1</span><h2 id="t-register">Registro</h2></div>
+      <form id="register-form" novalidate>
+        <div class="grid">
+          <label>Nombre completo
+            <input type="text" id="reg-name" autocomplete="name" required minlength="2">
+            <small class="err" data-for="reg-name"></small>
+          </label>
+          <label>Correo electrónico
+            <input type="email" id="reg-email" autocomplete="email" required>
+            <small class="err" data-for="reg-email"></small>
+          </label>
+          <label>Empresa u organización <span class="opt">(opcional)</span>
+            <input type="text" id="reg-org" autocomplete="organization">
+          </label>
+          <label>Rol <span class="opt">(opcional)</span>
+            <select id="reg-role">
+              <option value="">Selecciona…</option>
+              <option>Analista</option>
+              <option>Contabilidad / Finanzas</option>
+              <option>Inversionista</option>
+              <option>Estudiante</option>
+              <option>Otro</option>
+            </select>
+          </label>
+        </div>
+        <label class="check">
+          <input type="checkbox" id="reg-consent" required>
+          <span>Acepto que mis datos se guarden para usar esta herramienta.</span>
+        </label>
+        <small class="err" data-for="reg-consent"></small>
+        <div class="actions">
+          <button type="submit" class="btn primary">Registrarme</button>
+          <span id="reg-status" class="status" role="status"></span>
+        </div>
+      </form>
+    </section>
+
+    <!-- PASO 2: TICKER (combo + caja de texto, lado a lado) -->
+    <section class="card locked" id="step-ticker" aria-labelledby="t-ticker">
+      <div class="card-head"><span class="badge">2</span><h2 id="t-ticker">Compañía</h2></div>
+      <form id="ticker-form" novalidate>
+        <div class="ticker-row">
+          <div class="ticker-col">
+            <label for="ticker-select">Elige el ticker de la lista</label>
+            <select id="ticker-select" disabled></select>
+            <small class="err" data-for="ticker-select"></small>
+          </div>
+          <div class="ticker-or" aria-hidden="true">o</div>
+          <div class="ticker-col">
+            <label for="ticker-other">Escribe el ticker si no aparece</label>
+            <input type="text" id="ticker-other" maxlength="6" autocomplete="off" autocapitalize="characters"
+                   spellcheck="false" placeholder="Ej.: AAPL" disabled>
+            <small class="err" data-for="ticker-other"></small>
+          </div>
+        </div>
+        <small class="hint">Cualquiera de las dos opciones es válida. Un ticker son de 1 a 6 caracteres: letras, números, punto o guion. Si usas una, la otra se limpia.</small>
+        <div class="actions">
+          <button type="submit" class="btn primary" id="btn-send-ticker" disabled>Enviar ticker</button>
+          <span id="ticker-status" class="status" role="status"></span>
+        </div>
+      </form>
+    </section>
+
+    <!-- PASO 3: ACCIONES -->
+    <section class="card locked" id="step-actions" aria-labelledby="t-actions">
+      <div class="card-head"><span class="badge">3</span><h2 id="t-actions">Estados financieros y gráficas</h2></div>
+      <p class="selected">Compañía seleccionada: <strong id="selected-company">—</strong></p>
+      <div class="actions">
+        <button type="button" class="btn primary" id="btn-load" disabled>Cargar estados financieros</button>
+        <button type="button" class="btn" id="btn-charts" disabled>Crear las gráficas</button>
+        <span id="action-status" class="status" role="status"></span>
+      </div>
+
+      <div id="fin-table-wrap" hidden>
+        <h3>Estado de resultados (resumen)</h3>
+        <div class="table-scroll"><table id="fin-table"></table></div>
+        <p class="note" id="fin-note"></p>
+      </div>
+
+      <div id="charts-wrap" hidden>
+        <h3 id="charts-title">Evolución de ingresos y márgenes</h3>
+        <div id="kpis" class="kpis"></div>
+        <div id="chart-tabs" class="tabs" role="tablist" aria-label="Vista de la gráfica">
+          <button type="button" role="tab" data-view="ingresos" aria-selected="true">Ingresos y utilidades</button>
+          <button type="button" role="tab" data-view="margenes" aria-selected="false">Márgenes</button>
+          <button type="button" role="tab" data-view="crecimiento" aria-selected="false">Crecimiento anual</button>
+          <button type="button" role="tab" data-view="pares" aria-selected="false">Comparativo de pares</button>
+        </div>
+        <div id="chart-legend" class="legend" aria-label="Series (clic para ocultar o mostrar)"></div>
+        <div class="chart-box">
+          <canvas id="chart-canvas" role="img" aria-label="Gráfica interactiva de métricas financieras"></canvas>
+          <div id="chart-tip" class="tip" hidden></div>
+          <p id="chart-empty" class="note" hidden></p>
+        </div>
+        <p class="note" id="cap-main"></p>
+        <p class="hint">Pasa el cursor sobre un año para ver el detalle. Haz clic en la leyenda para ocultar o mostrar series.</p>
+      </div>
+
+      <div id="chart-prompt-wrap" hidden>
+        <h3>Prompt de las gráficas <span class="opt">(usa el ticker enviado)</span></h3>
+        <textarea id="chart-prompt" rows="9" aria-label="Prompt para crear las gráficas"></textarea>
+        <div class="row">
+          <button type="button" class="btn small primary" id="chart-prompt-copy">Copiar prompt</button>
+          <a class="btn small" id="chart-prompt-open" target="_blank" rel="noopener noreferrer" href="#">Abrir en Claude</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- PASO 4: INFORME (formulario de objetos + vista en línea + descargas) -->
+    <section class="card locked" id="step-report" aria-labelledby="t-report">
+      <div class="card-head"><span class="badge">4</span><h2 id="t-report">Informe VCC50000 Insight</h2></div>
+      <p class="hint">Pulsa <strong>Generar informe preliminar</strong>: el sistema carga los estados del ticker enviado, calcula indicadores y señales, y deja un borrador editable. Luego tú, como analista, completas o corriges los campos y pulsas <strong>Actualizar informe</strong>. Nada se inventa: lo que no esté disponible aparece como “n.d.” o no se muestra.</p>
+      <div class="actions top-actions">
+        <button type="button" class="btn primary" id="btn-report">Generar informe preliminar</button>
+        <button type="button" class="btn" id="btn-ai">Redactar con IA</button>
+        <span id="report-status" class="status" role="status"></span>
+      </div>
+      <small class="hint" id="ai-hint"></small>
+      <div class="pipeline" id="pipeline">
+        <h3>Preparación del análisis <span class="opt">(cada paso se guarda en la base de datos local; el informe lee de ahí)</span></h3>
+        <div class="actions">
+          <button type="button" class="btn" id="btn-an-d">1 · Cargar datos <span class="chip" id="chip-d">pendiente</span></button>
+          <button type="button" class="btn" id="btn-an-v">2 · Análisis vertical <span class="chip" id="chip-v">pendiente</span></button>
+          <button type="button" class="btn" id="btn-an-h">3 · Análisis horizontal <span class="chip" id="chip-h">pendiente</span></button>
+          <button type="button" class="btn" id="btn-an-r">4 · Ratios clave <span class="chip" id="chip-r">pendiente</span></button>
+        </div>
+        <div class="row"><button type="button" class="btn small" id="btn-refresh">Volver a consultar la fuente (reemplaza lo guardado)</button></div>
+        <div id="an-preview" class="an-preview"></div>
+      </div>
+      <div id="rp-basics" class="rp-basics" hidden></div>
+
+      <div class="grid">
+        <label>Fecha del informe <input type="date" id="rp-date"></label>
+        <label>Preparado por <input type="text" id="rp-author" autocomplete="name"></label>
+      </div>
+
+      <details class="rp-group"><summary>Datos de mercado <span class="opt">(opcional; los digitas tú)</span></summary>
+        <div class="grid g4">
+          <label>Precio de la acción <input type="text" id="rp-price" placeholder="Ej.: USD 49.5"></label>
+          <label>Capitalización <input type="text" id="rp-mcap" placeholder="Ej.: USD 73.5B"></label>
+          <label>P/E <input type="text" id="rp-pe" placeholder="Ej.: 23.7"></label>
+          <label>EPS <input type="text" id="rp-eps" placeholder="Ej.: 2.93"></label>
+          <label>Rango 52 semanas <input type="text" id="rp-range" placeholder="Ej.: 33.8 – 60.1"></label>
+          <label>Rend. por dividendo <input type="text" id="rp-yield" placeholder="Ej.: 2.3%"></label>
+          <label>Consenso de analistas
+            <select id="rp-consensus"><option value="">—</option><option>Compra</option><option>Mantener</option><option>Venta</option></select></label>
+          <label>Precio objetivo <input type="text" id="rp-target" placeholder="Ej.: USD 62"></label>
+        </div>
+      </details>
+
+      <details class="rp-group"><summary>Comparativo con pares <span class="opt">(opcional)</span></summary>
+        <label>Tickers separados por coma (máx. 5) <input type="text" id="rp-peers" placeholder="Ej.: HAL, WFRD, BKR" autocomplete="off"></label>
+        <small class="hint">Se consultan con la misma fuente que el ticker principal (SEC o catálogo).</small>
+      </details>
+
+      <details class="rp-group" open><summary>Análisis narrativo</summary>
+        <label>Resumen ejecutivo
+          <textarea id="rp-summary" rows="5" placeholder="Si lo dejas vacío, se inserta un borrador automático con las cifras cargadas."></textarea></label>
+        <label>Análisis financiero (comentario sobre ratios y análisis vertical/horizontal) <span class="opt">(una idea por línea; se genera solo, edítalo)</span>
+          <textarea id="rp-analysis" rows="6"></textarea></label>
+        <div class="row"><button type="button" class="btn small" id="btn-draft">Regenerar borrador automático (reemplaza los textos)</button></div>
+        <div class="grid">
+          <label>Caso favorable <span class="opt">(una idea por línea)</span><textarea id="rp-bull" rows="5"></textarea></label>
+          <label>Caso adverso <span class="opt">(una idea por línea)</span><textarea id="rp-bear" rows="5"></textarea></label>
+        </div>
+        <div class="grid">
+          <label>Fortalezas <textarea id="rp-sw-s" rows="4"></textarea></label>
+          <label>Debilidades <textarea id="rp-sw-w" rows="4"></textarea></label>
+          <label>Oportunidades <textarea id="rp-sw-o" rows="4"></textarea></label>
+          <label>Amenazas <textarea id="rp-sw-t" rows="4"></textarea></label>
+        </div>
+        <label>Notas de la llamada de resultados <span class="opt">(una idea por línea)</span><textarea id="rp-call" rows="4"></textarea></label>
+        <small class="hint">Para redactar estas secciones con Claude usando solo tus cifras, copia el prompt (botón de abajo, tras generar el informe) y pega el resultado aquí.</small>
+      </details>
+
+      <details class="rp-group" id="db-panel"><summary>Base de datos local <span class="opt">(lo guardado para recuperar sin volver a consultar)</span></summary>
+        <div id="db-list" class="db-list"></div>
+        <div class="row"><button type="button" class="btn small" id="btn-db-refresh">Actualizar lista</button> <button type="button" class="btn small" id="btn-db-export">Descargar base (JSON)</button></div>
+      </details>
+      <details class="rp-group"><summary>Noticias relevantes <span class="opt">(opcional)</span></summary>
+        <div class="grid">
+          <label>Titular <input type="text" id="rp-n-title"></label>
+          <label>Enlace (https://…) <input type="text" id="rp-n-url" placeholder="https://"></label>
+          <label>Fecha <input type="date" id="rp-n-date"></label>
+          <div class="grid">
+            <label>Importancia (1–10) <input type="text" id="rp-n-imp" value="5" inputmode="numeric"></label>
+            <label>Impacto <select id="rp-n-sent"><option>Positivo</option><option selected>Neutral</option><option>Negativo</option></select></label>
+          </div>
+        </div>
+        <label>Resumen <textarea id="rp-n-text" rows="2"></textarea></label>
+        <div class="row"><button type="button" class="btn small" id="btn-news-add">Agregar noticia</button></div>
+        <div id="news-list" class="news-list"></div>
+      </details>
+
+      <div id="report-tools" class="report-tools" hidden>
+        <strong>Descargar:</strong>
+        <button type="button" class="btn small primary" id="btn-pdf">PDF</button>
+        <button type="button" class="btn small" id="btn-html">HTML</button>
+        <button type="button" class="btn small" id="btn-csv">CSV (Excel)</button>
+        <button type="button" class="btn small" id="btn-json">JSON</button>
+        <button type="button" class="btn small" id="btn-claude-prompt">Copiar prompt para redactar con Claude</button>
+      </div>
+      <div id="report-view" class="report-view" hidden></div>
+    </section>
+
+    <!-- SKILLS -->
+    <section class="card" id="skills" aria-labelledby="t-skills">
+      <div class="card-head"><span class="badge alt">★</span><h2 id="t-skills">Skills precargados y sus prompts</h2></div>
+      <p class="hint">Cada prompt usa el ticker elegido arriba. Puedes editarlo, copiarlo y pegarlo en Claude.</p>
+      <div id="skills-list" class="skills"></div>
+    </section>
+
+    <section class="card" id="step-inbox" aria-labelledby="t-inbox">
+      <div class="card-head"><span class="badge">5</span><h2 id="t-inbox">Solicitudes de clientes (WhatsApp → correo)</h2></div>
+      <p class="hint">El cliente escribe por WhatsApp y el mensaje llega al correo del buzón con el asunto <strong>Análisis financiero:TICKER</strong> (por ejemplo <em>Análisis financiero:EC</em> o <em>Análisis financiero:SLB de Schlumberger</em>). El sistema lee el buzón, valida el asunto, extrae el ticker y deja la solicitud en la lista. Los mensajes con otro asunto se ignoran. Solo se lee: no se borra ni se marca nada en el correo.</p>
+      <div class="actions top-actions">
+        <button type="button" class="btn primary" id="btn-inbox-check">Revisar buzón ahora</button>
+        <label class="inline"><input type="checkbox" id="inbox-auto"> Revisar cada 60 s</label>
+        <span id="inbox-status" class="status" role="status"></span>
+      </div>
+      <small class="hint" id="inbox-hint"></small>
+      <div class="inbox-wrap"><table class="tbl inbox-table" id="inbox-table" hidden>
+        <thead><tr><th>Recibida</th><th>Cliente / WhatsApp</th><th>Ticker</th><th>Asunto</th><th>Estado</th><th></th></tr></thead>
+        <tbody id="inbox-body"></tbody></table></div>
+      <p class="rnote" id="inbox-empty">Aún no hay solicitudes capturadas.</p>
+      <details class="rp-group"><summary>Probar sin correo <span class="opt">(simula la llegada de un asunto)</span></summary>
+        <div class="grid">
+          <label>Asunto <input type="text" id="inbox-test-subject" placeholder="Análisis financiero:EC de Ecopetrol"></label>
+          <label>Remitente / WhatsApp <input type="text" id="inbox-test-from" placeholder="Cliente Demo +57 300 123 4567"></label>
+        </div>
+        <div class="row"><button type="button" class="btn small" id="btn-inbox-test">Simular solicitud</button></div>
+      </details>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <div class="wrap foot-in">
+      <strong>VCC50000</strong>
+      <p>Compañía constituida en Delaware, EE. UU. Servicios de análisis financiero.</p>
+      <p class="fine" id="ver-stamp">Versión de la página: v9</p>
+      <p class="fine">La información es de apoyo analítico y no constituye asesoría de inversión ni recomendación de compra o venta. Verifica las cifras contra el filing oficial. Ilustraciones vectoriales originales.</p>
+    </div>
+  </footer>
+
+  <script src="data.js?v=9"></script>
+  <script src="app.js?v=9"></script>
+  <script src="store.js?v=9"></script>
+  <script src="report.js?v=9"></script>
+  <script src="inbox.js?v=9"></script>
+<script>window.addEventListener("load",function(){if(window.VCC_REPORT_V!==9){var b=document.createElement("div");b.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99;background:#c2362b;color:#fff;padding:10px 16px;font:600 14px sans-serif;text-align:center";b.textContent="Tu navegador tiene archivos antiguos. Cierra la ventana negra, vuelve a ejecutar iniciar.bat con los archivos nuevos y pulsa Ctrl+F5.";document.body.appendChild(b);}});</script>
+</body>
+</html>

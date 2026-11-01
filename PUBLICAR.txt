@@ -1,0 +1,11 @@
+PUBLICAR VCC50000 (MVP1) EN GOOGLE CLOUD RUN
+Variables de entorno (Cloud Run > Variables y secretos), nunca en el código:
+  ACCESS_PASSWORD     clave de acceso (el navegador pide usuario cualquiera + esta clave)
+  SEC_CONTACT         "Nombre correo@dominio.com"
+  GMAIL_APP_PASSWORD  contraseña de aplicación de vcc5000000@gmail.com
+  ANTHROPIC_API_KEY   (opcional)
+Comando (con gcloud instalado, desde esta carpeta):
+  gcloud run deploy vcc50000 --source . --region us-east1 --allow-unauthenticated --set-env-vars SEC_CONTACT="Nombre correo@dominio.com" --set-secrets ACCESS_PASSWORD=access:latest,GMAIL_APP_PASSWORD=gmail:latest
+Limitaciones del MVP: la carpeta db se borra al reiniciar el servicio (los datos también quedan en el navegador de cada analista);
+las solicitudes de la bandeja se vuelven a capturar al revisar el buzón. Siguiente fase: Firestore e inicio de sesión.
+Dominio propio: Cloud Run > Administrar dominios personalizados.
