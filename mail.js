@@ -41,6 +41,52 @@ function bodyText(raw) {   // texto plano mínimo: quita base64/quoted-printable
   return t.replace(/=\r?\n/g, "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 400);
 }
 
+
+/* ---- Dirección de respuesta ---- */
+const BAD_SENDER = /(no-?reply|do-?not-?reply|mailer-daemon|postmaster|bounce|notifications?@|newsletter)/i;
+function parseAddress(...fields) {
+  for (const f of fields) {
+    const t = String(f || ""); const m = /<([^<>\s@]+@[^<>\s@]+\.[^<>\s@]+)>/.exec(t) || /([A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,})/.exec(t);
+    if (m && !BAD_SENDER.test(m[1])) return m[1].toLowerCase();
+  }
+  return "";
+}
+
+/* ---- SMTP mínimo (Gmail: smtp.gmail.com:465, mismo usuario y contraseña de aplicación) ---- */
+function smtpSend(cfg, from, to, raw) {
+  return new Promise((resolve, reject) => {
+    const sock = cfg.plain ? net.connect(cfg.port, cfg.host) : tls.connect({ host: cfg.host, port: cfg.port, servername: cfg.host });
+    sock.setEncoding("utf8"); sock.setTimeout(30000, () => { sock.destroy(); reject(new Error("El servidor de correo saliente no respondió a tiempo.")); });
+    let buf = "", waiter = null;
+    const feed = () => { const lines = buf.split("\r\n"); // respuesta completa: última línea con "NNN " (sin guion)
+      for (let i = 0; i < lines.length - 1; i++) if (/^\d{3} /.test(lines[i]) && waiter) { const code = +lines[i].slice(0, 3), txt = lines.slice(0, i + 1).join("\n"); buf = lines.slice(i + 1).join("\r\n"); const w = waiter; waiter = null; return w(code, txt); } };
+    sock.on("data", (d) => { buf += d; feed(); });
+    sock.on("error", (e) => reject(new Error("No se pudo conectar al correo saliente (" + e.message + ").")));
+    const get = () => new Promise((res) => { waiter = (c, t) => res({ c, t }); feed(); });
+    const step = async (cmd, ok) => { if (cmd !== null) sock.write(cmd + "\r\n"); const r = await get(); if (!ok.includes(r.c)) throw new Error("SMTP " + r.c + ": " + r.t.split("\n").pop().slice(4)); return r; };
+    (async () => {
+      await step(null, [220]); await step("EHLO vcc50000.local", [250]);
+      await step("AUTH PLAIN " + Buffer.from("\0" + cfg.user + "\0" + cfg.pass).toString("base64"), [235]);
+      await step("MAIL FROM:<" + from + ">", [250]); await step("RCPT TO:<" + to + ">", [250, 251]); await step("DATA", [354]);
+      sock.write(raw.replace(/\r?\n/g, "\r\n").replace(/^\./gm, "..") + "\r\n.\r\n"); await step(null, [250]);
+      sock.write("QUIT\r\n"); sock.end(); resolve(true);
+    })().catch((e) => { try { sock.destroy(); } catch (_) {} reject(e); });
+  });
+}
+const b64lines = (buf) => buf.toString("base64").replace(/(.{76})/g, "$1\r\n");
+const encWord = (t) => (/^[\x20-\x7e]*$/.test(t) ? t : "=?UTF-8?B?" + Buffer.from(t, "utf8").toString("base64") + "?=");
+/* Arma un correo MIME con el cuerpo en texto y el PDF adjunto; no se puede confundir con una solicitud (asunto distinto y cabecera propia) */
+function buildReply(o) {
+  const bd = "vcc50000-" + Math.random().toString(16).slice(2), host = o.from.split("@")[1] || "vcc50000.local";
+  const h = ["From: " + encWord("VCC50000 Insight") + " <" + o.from + ">", "To: <" + o.to + ">", "Subject: " + encWord(o.subject), "Date: " + new Date().toUTCString(),
+    "Message-ID: <" + Date.now() + "." + Math.random().toString(16).slice(2) + "@" + host + ">", "X-VCC50000-Reply: 1", "Auto-Submitted: auto-replied", "MIME-Version: 1.0"];
+  if (o.inReplyTo) { h.push("In-Reply-To: " + o.inReplyTo, "References: " + o.inReplyTo); }
+  h.push('Content-Type: multipart/mixed; boundary="' + bd + '"', "", "--" + bd, 'Content-Type: text/plain; charset="UTF-8"', "Content-Transfer-Encoding: base64", "", b64lines(Buffer.from(o.text, "utf8")));
+  if (o.pdf) h.push("--" + bd, 'Content-Type: application/pdf; name="' + o.filename + '"', 'Content-Disposition: attachment; filename="' + o.filename + '"', "Content-Transfer-Encoding: base64", "", b64lines(o.pdf));
+  h.push("--" + bd + "--", "");
+  return h.join("\r\n");
+}
+
 /* ---- Cliente IMAP mínimo ---- */
 function imapSession(cfg) {
   return new Promise((resolve, reject) => {
@@ -91,12 +137,12 @@ async function fetchRecent(cfg) {
     const uids = ((/\* SEARCH([\d ]*)/.exec(sr) || [])[1] || "").trim().split(/\s+/).filter(Boolean).slice(-300);
     if (!uids.length) return [];
     // 1) solo cabeceras de los últimos mensajes (livianas); 2) el fragmento de texto solo de los que parecen solicitudes
-    const hr = await s.cmd("UID FETCH " + uids.join(",") + " (UID BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE MESSAGE-ID REPLY-TO)])");
+    const hr = await s.cmd("UID FETCH " + uids.join(",") + " (UID BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE MESSAGE-ID REPLY-TO AUTO-SUBMITTED X-VCC50000-REPLY)])");
     const msgs = parseFetch(hr).map((m) => {
       const h = headerMap(m.head), from = decodeWords(h.from || ""), subject = decodeWords(h.subject || "");
-      return { uid: m.uid, from, subject, date: h.date ? new Date(h.date).toISOString() : null, messageId: h["message-id"] || "", replyTo: h["reply-to"] || "", snippet: "", phone: findPhone(from, h["reply-to"] || "") };
+      return { uid: m.uid, from, subject, date: h.date ? new Date(h.date).toISOString() : null, messageId: h["message-id"] || "", replyTo: h["reply-to"] || "", auto: !!(h["x-vcc50000-reply"] || /auto-/i.test(h["auto-submitted"] || "")), snippet: "", phone: findPhone(from, h["reply-to"] || "") };
     });
-    const hits = msgs.filter((m) => parseSubject(m.subject));
+    const hits = msgs.filter((m) => !m.auto && parseSubject(m.subject));
     if (hits.length) {
       const tr = await s.cmd("UID FETCH " + hits.map((m) => m.uid).join(",") + " (UID BODY.PEEK[TEXT]<0.1500>)");
       const texts = {}; parseFetch(tr).forEach((t) => { texts[t.uid] = t.text; });
@@ -106,4 +152,4 @@ async function fetchRecent(cfg) {
   } finally { s.close(); }
 }
 
-module.exports = { parseSubject, decodeWords, fetchRecent, findPhone };
+module.exports = { parseSubject, decodeWords, fetchRecent, findPhone, parseAddress, smtpSend, buildReply };

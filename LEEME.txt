@@ -62,3 +62,9 @@ El buzón se revisa sobre los correos de los últimos 7 días (solo cabeceras; e
 Cada solicitud tiene tres botones: "Atender solicitud de cliente", "Enviar automático (PDF por WhatsApp)" (Twilio) y "Enviar manual (abrir WhatsApp)".
 Los envíos prepararán el informe solos si aún no está listo. Casilla "Atender y enviar automáticamente las solicitudes nuevas": con la página abierta,
 sesión de analista y Twilio configurado, atiende y envía cada solicitud nueva. Si falla, la solicitud queda en estado "error".
+
+--- v15 ---
+Respuesta por correo: "Responder por correo (PDF adjunto)" contesta al remitente de la solicitud (Reply-To o From) desde el buzón, con el informe en PDF adjunto,
+usando SMTP de Gmail (smtp.gmail.com:465) con la misma GMAIL_APP_PASSWORD. La casilla automática ahora atiende y responde por correo.
+WhatsApp queda como opción adicional. Se omiten remitentes tipo no-reply y los correos propios (cabecera X-VCC50000-Reply) para evitar ciclos.
+El asunto de la respuesta es "Informe VCC50000 Insight — TICKER" (no se confunde con una solicitud).

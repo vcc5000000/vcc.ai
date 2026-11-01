@@ -1,7 +1,7 @@
 "use strict";
 /* VCC50000 — bandeja de solicitudes de clientes (WhatsApp → correo). Fase 1: recepción y visualización. */
 (function () {
-  let timer = null, rows = [], waOk = false, busy = false;
+  let timer = null, rows = [], waOk = false, mailOk = false, busy = false;
   const esc = (t) => String(t == null ? "" : t);
   const fdate = (iso) => { const d = new Date(iso); return isNaN(d) ? "" : d.toLocaleString("es-CO", { dateStyle: "short", timeStyle: "short" }); };
   const mk = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text !== undefined) n.textContent = text; return n; };
@@ -13,14 +13,14 @@
     rows.forEach((r) => {
       const tr = document.createElement("tr");
       const who = mk("td"); who.appendChild(mk("div", "", esc(r.remitente) || "—"));
-      if (r.whatsapp) who.appendChild(mk("small", "rnote", "WhatsApp: " + r.whatsapp));
+      if (r.responderA) who.appendChild(mk("small", "rnote", "Correo: " + r.responderA)); if (r.whatsapp) who.appendChild(mk("small", "rnote", "WhatsApp: " + r.whatsapp));
       if (r.fragmento) who.appendChild(mk("small", "rnote", "“" + r.fragmento.slice(0, 90) + "”"));
       const tk = mk("td", "tk", r.ticker); if (r.empresa) tk.appendChild(mk("small", "rnote", r.empresa));
       const es = mk("td"); es.appendChild(mk("span", "chip " + (r.estado === "atendida" ? "ok" : r.estado === "en atención" ? "wip" : r.estado === "error" ? "err" : "new"), r.estado));
-      const act = mk("td"); const bt = (label, cls, fn, off, why) => { const x = mk("button", "btn small " + cls, label); x.type = "button"; x.style.marginTop = "4px"; if (off) { x.disabled = true; x.title = why; } else x.addEventListener("click", fn); act.appendChild(x); act.appendChild(document.createElement("br")); return x; };
+      const act = mk("td"); if (r.respondida) act.appendChild(mk("small", "rnote", "Respondida a " + r.responderA + " · " + fdate(r.respondida))); const bt = (label, cls, fn, off, why) => { const x = mk("button", "btn small " + cls, label); x.type = "button"; x.style.marginTop = "4px"; if (off) { x.disabled = true; x.title = why; } else x.addEventListener("click", fn); act.appendChild(x); act.appendChild(document.createElement("br")); return x; };
       bt(r.estado === "atendida" ? "Atender de nuevo" : "Atender solicitud de cliente", "primary", () => attend(r));
-      bt("Enviar automático (PDF por WhatsApp)", "", () => sendAuto(r), !r.whatsapp || !waOk, !r.whatsapp ? "La solicitud no trae número de WhatsApp" : "Falta configurar Twilio (TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_WHATSAPP_FROM)");
-      bt("Enviar manual (abrir WhatsApp)", "", () => sendManual(r), !r.whatsapp, "La solicitud no trae número de WhatsApp");
+      bt(r.respondida ? "Responder de nuevo por correo" : "Responder por correo (PDF adjunto)", "primary", () => sendEmail(r), !r.responderA || !mailOk, !r.responderA ? "La solicitud no trae un correo al que responder" : "Falta GMAIL_APP_PASSWORD en el servidor");
+      if (r.whatsapp) { bt("WhatsApp automático (PDF)", "", () => sendAuto(r), !waOk, "Falta configurar Twilio"); bt("WhatsApp manual (abrir app)", "", () => sendManual(r)); }
       [mk("td", "", fdate(r.recibida)), who, tk, mk("td", "", esc(r.asunto)), es, act].forEach((c) => tr.appendChild(c));
       tb.appendChild(tr);
     });
@@ -32,7 +32,7 @@
     return j;
   }
   async function load() {
-    try { const j = await api("/inbox"); rows = j.solicitudes; waOk = !!j.whatsappConfigurado; render(); modeHint();
+    try { const j = await api("/inbox"); rows = j.solicitudes; waOk = !!j.whatsappConfigurado; mailOk = !!j.configurado; render(); modeHint();
       $("inbox-hint").textContent = "Buzón: " + j.buzon + (j.configurado ? " · conexión configurada." : " · falta la contraseña de aplicación (GMAIL_APP_PASSWORD en iniciar.bat); puedes probar con «Simular solicitud».");
     } catch (e) { $("inbox-hint").textContent = e.message; }
   }
@@ -77,6 +77,15 @@
     const pub = await api("/report/publish", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ html: rep.html, pdf }) });
     return { pub, body: rep.text + "\nInforme completo (PDF): " + (pub.pdfUrl || pub.url) + "\nInformación de apoyo analítico; no es asesoría de inversión." };
   }
+  /* Respuesta por correo: el servidor responde al remitente con el PDF adjunto (SMTP de Gmail) */
+  async function sendEmail(r) {
+    try {
+      const p = await prepare(r); if (!p) return false;
+      const rep = ready(r.ticker);
+      const j = await api("/inbox/reply", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: r.id, token: p.pub.token, resumen: rep ? rep.text : "" }) });
+      Object.assign(r, j.solicitud); render(); st("Informe respondido por correo a " + j.a + " con el PDF adjunto.", "ok"); return true;
+    } catch (e) { st("No se pudo responder a " + (r.responderA || "la solicitud") + ": " + e.message, "bad"); await mark(r, "error"); return false; }
+  }
   /* Envío automático: el servidor manda el mensaje con el PDF adjunto por la API de WhatsApp (Twilio) */
   async function sendAuto(r, quiet) {
     try {
@@ -101,14 +110,14 @@
   /* Modo automático: atiende y envía, una por una, las solicitudes nuevas con número de WhatsApp */
   async function processQueue() {
     if (busy || !$("inbox-autosend").checked) return; busy = true;
-    try { for (const r of rows.filter((x) => x.estado === "recibida" && x.whatsapp).reverse()) { if (!$("inbox-autosend").checked) break; await sendAuto(r, true); } }
+    try { for (const r of rows.filter((x) => x.estado === "recibida" && x.responderA).reverse()) { if (!$("inbox-autosend").checked) break; await sendEmail(r); } }
     finally { busy = false; }
   }
   function modeHint() {
     const c = $("inbox-autosend"), box = $("lbl-autosend");
-    c.disabled = !waOk; box.title = waOk ? "" : "Requiere configurar Twilio en el servidor";
-    $("inbox-mode").textContent = waOk ? "Envío automático por WhatsApp disponible. Con la casilla activada, la página (abierta y con sesión de analista) atiende y envía cada solicitud nueva. También puedes enviar a mano desde cada fila."
-      : "Envío automático sin configurar (Twilio). Mientras tanto usa «Enviar manual»: abre WhatsApp con el mensaje y el enlace al PDF.";
+    c.disabled = !mailOk; box.title = mailOk ? "" : "Requiere GMAIL_APP_PASSWORD en el servidor";
+    $("inbox-mode").textContent = mailOk ? "Respuesta por correo disponible: «Responder por correo» envía el informe en PDF al remitente. Con la casilla activada, la página (abierta y con sesión de analista) atiende y responde cada solicitud nueva. WhatsApp queda como opción adicional."
+      : "Para responder por correo hace falta la contraseña de aplicación del buzón (GMAIL_APP_PASSWORD).";
   }
   document.addEventListener("DOMContentLoaded", () => {
     if (!$("btn-inbox-check")) return;

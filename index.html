@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>VCC50000 · Análisis financiero</title>
-  <link rel="stylesheet" href="styles.css?v=14">
+  <link rel="stylesheet" href="styles.css?v=15">
 </head>
 <body>
   <header class="hero">
@@ -296,19 +296,19 @@
       <div class="actions top-actions">
         <button type="button" class="btn primary" id="btn-inbox-check">Revisar buzón ahora</button>
         <label class="inline"><input type="checkbox" id="inbox-auto"> Revisar cada 60 s</label>
-        <label class="inline" id="lbl-autosend"><input type="checkbox" id="inbox-autosend"> Atender y enviar automáticamente las solicitudes nuevas</label>
+        <label class="inline" id="lbl-autosend"><input type="checkbox" id="inbox-autosend"> Atender y responder automáticamente por correo las solicitudes nuevas</label>
         <span id="inbox-status" class="status" role="status"></span>
       </div>
       <small class="hint" id="inbox-hint"></small>
       <small class="hint" id="inbox-mode"></small>
       <div class="inbox-wrap"><table class="tbl inbox-table" id="inbox-table" hidden>
-        <thead><tr><th>Recibida</th><th>Cliente / WhatsApp</th><th>Ticker</th><th>Asunto</th><th>Estado</th><th></th></tr></thead>
+        <thead><tr><th>Recibida</th><th>Cliente / correo / WhatsApp</th><th>Ticker</th><th>Asunto</th><th>Estado</th><th></th></tr></thead>
         <tbody id="inbox-body"></tbody></table></div>
       <p class="rnote" id="inbox-empty">Aún no hay solicitudes capturadas.</p>
       <details class="rp-group"><summary>Probar sin correo <span class="opt">(simula la llegada de un asunto)</span></summary>
         <div class="grid">
           <label>Asunto <input type="text" id="inbox-test-subject" placeholder="EC"></label>
-          <label>Remitente / WhatsApp <input type="text" id="inbox-test-from" placeholder="Cliente Demo +57 300 123 4567"></label>
+          <label>Remitente (correo) / WhatsApp <input type="text" id="inbox-test-from" placeholder="Cliente <cliente@correo.com> +57 300 123 4567"></label>
         </div>
         <div class="row"><button type="button" class="btn small" id="btn-inbox-test">Simular solicitud</button></div>
       </details>
@@ -319,18 +319,18 @@
     <div class="wrap foot-in">
       <strong>VCC50000</strong>
       <p>Compañía constituida en Delaware, EE. UU. Servicios de análisis financiero.</p>
-      <p class="fine" id="ver-stamp">Versión de la página: v14</p>
+      <p class="fine" id="ver-stamp">Versión de la página: v15</p>
       <p class="fine">La información es de apoyo analítico y no constituye asesoría de inversión ni recomendación de compra o venta. Verifica las cifras contra el filing oficial. Ilustraciones vectoriales originales.</p>
     </div>
   </footer>
 
-  <script src="data.js?v=14"></script>
-  <script src="app.js?v=14"></script>
-  <script src="store.js?v=14"></script>
-  <script src="report.js?v=14"></script>
-  <script src="vendor/pdf-lib.min.js?v=14"></script>
-  <script src="pdfreport.js?v=14"></script>
-  <script src="inbox.js?v=14"></script>
-<script>window.addEventListener("load",function(){if(window.VCC_REPORT_V!==14){var b=document.createElement("div");b.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99;background:#c2362b;color:#fff;padding:10px 16px;font:600 14px sans-serif;text-align:center";b.textContent="Tu navegador tiene archivos antiguos. Cierra la ventana negra, vuelve a ejecutar iniciar.bat con los archivos nuevos y pulsa Ctrl+F5.";document.body.appendChild(b);}});</script>
+  <script src="data.js?v=15"></script>
+  <script src="app.js?v=15"></script>
+  <script src="store.js?v=15"></script>
+  <script src="report.js?v=15"></script>
+  <script src="vendor/pdf-lib.min.js?v=15"></script>
+  <script src="pdfreport.js?v=15"></script>
+  <script src="inbox.js?v=15"></script>
+<script>window.addEventListener("load",function(){if(window.VCC_REPORT_V!==15){var b=document.createElement("div");b.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99;background:#c2362b;color:#fff;padding:10px 16px;font:600 14px sans-serif;text-align:center";b.textContent="Tu navegador tiene archivos antiguos. Cierra la ventana negra, vuelve a ejecutar iniciar.bat con los archivos nuevos y pulsa Ctrl+F5.";document.body.appendChild(b);}});</script>
 </body>
 </html>

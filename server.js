@@ -195,6 +195,7 @@ const STATIC = new Set(["index.html", "app.js", "data.js", "report.js", "store.j
 const TW = { sid: process.env.TWILIO_ACCOUNT_SID || "", token: process.env.TWILIO_AUTH_TOKEN || "", from: (process.env.TWILIO_WHATSAPP_FROM || "").replace(/^whatsapp:/, ""), base: process.env.TWILIO_API_BASE || "https://api.twilio.com" };
 const ACCESS_PASSWORD = process.env.ACCESS_PASSWORD || "";
 const mail = require("./mail.js"), crypto = require("crypto");
+const SMTP = { host: process.env.SMTP_HOST || "smtp.gmail.com", port: +(process.env.SMTP_PORT || 465), plain: process.env.SMTP_PLAIN === "1" };
 const MAIL = { user: process.env.MAIL_USER || "vcc5000000@gmail.com", pass: process.env.GMAIL_APP_PASSWORD || "", host: process.env.IMAP_HOST || "imap.gmail.com", port: +(process.env.IMAP_PORT || 993), plain: process.env.IMAP_PLAIN === "1", days: 7 };
 const REQ_DIR = path.join(__dirname, "db", "requests");
 function reqList() { try { return fs.readdirSync(REQ_DIR).filter((f) => f.endsWith(".json")).map((f) => JSON.parse(fs.readFileSync(path.join(REQ_DIR, f), "utf8"))).sort((a, b) => String(b.recibida).localeCompare(String(a.recibida))); } catch (_) { return []; } }
@@ -204,7 +205,7 @@ function reqHas(id) { return fs.existsSync(path.join(REQ_DIR, id + ".json")); }
 function toRequest(m) {
   const p = mail.parseSubject(m.subject); if (!p) return null;
   const id = crypto.createHash("sha1").update(m.messageId || (m.from + m.subject + m.date + m.uid)).digest("hex").slice(0, 16);
-  return { id, ticker: p.ticker, empresa: p.empresa, asunto: m.subject, remitente: m.from, whatsapp: m.phone || "", fragmento: m.snippet || "", recibida: m.date || new Date().toISOString(), capturada: new Date().toISOString(), estado: "recibida", canal: m.canal || "correo" };
+  return { id, ticker: p.ticker, empresa: p.empresa, asunto: m.subject, remitente: m.from, whatsapp: m.phone || "", fragmento: m.snippet || "", recibida: m.date || new Date().toISOString(), capturada: new Date().toISOString(), estado: "recibida", canal: m.canal || "correo", responderA: mail.parseAddress(m.replyTo, m.from), idMensaje: m.messageId || "" };
 }
 const DB_DIR = path.join(__dirname, "db"), DB_TABLES = new Set(["financials", "analysis", "reports"]);
 const dbFile = (t, k) => path.join(DB_DIR, t, k.replace(/[^A-Za-z0-9._\-]/g, "_") + ".json");
@@ -232,7 +233,7 @@ const server = http.createServer(async (req, res) => {
       const b = JSON.parse((await readBody(req, 14000000)) || "{}"); if (typeof b.html !== "string" || b.html.length < 200) return send(400, { error: "No hay informe para publicar." });
       const t = crypto.randomBytes(12).toString("hex"); fs.mkdirSync(SHARE_DIR, { recursive: true }); fs.writeFileSync(path.join(SHARE_DIR, t + ".html"), b.html);
       let pdfUrl = ""; if (typeof b.pdf === "string" && b.pdf.length > 100) { const buf = Buffer.from(b.pdf, "base64"); if (buf.slice(0, 5).toString() === "%PDF-") { fs.writeFileSync(path.join(SHARE_DIR, t + ".pdf"), buf); pdfUrl = baseUrl() + "/r/" + t + ".pdf"; } }
-      return send(200, { url: baseUrl() + "/r/" + t, pdfUrl });
+      return send(200, { url: baseUrl() + "/r/" + t, pdfUrl, token: t });
     }
     if (url.pathname === "/api/whatsapp/send" && req.method === "POST") {
       const b = JSON.parse((await readBody(req, 20000)) || "{}"); const to = String(b.to || "").replace(/\D/g, ""), body = String(b.body || "").slice(0, 1500);
@@ -243,7 +244,7 @@ const server = http.createServer(async (req, res) => {
       if (!r.ok) return send(502, { error: "WhatsApp rechazó el envío: " + (j.message || r.status) });
       return send(200, { enviado: true, sid: j.sid, to });
     }
-    if (url.pathname === "/api/health") return send(200, { ok: true, secContact: !!CONTACT, ai: !!ANTHROPIC_KEY, buzon: MAIL.user, buzonConfigurado: !!MAIL.pass, whatsappConfigurado: !!(TW.sid && TW.token && TW.from), version: "VCC50000-v14", carpeta: __dirname });
+    if (url.pathname === "/api/health") return send(200, { ok: true, secContact: !!CONTACT, ai: !!ANTHROPIC_KEY, buzon: MAIL.user, buzonConfigurado: !!MAIL.pass, whatsappConfigurado: !!(TW.sid && TW.token && TW.from), version: "VCC50000-v15", carpeta: __dirname });
     if (url.pathname === "/api/draft" && req.method === "POST") {
       return send(200, await aiDraft(JSON.parse((await readBody(req, 300000)) || "{}")));
     }
@@ -257,9 +258,25 @@ const server = http.createServer(async (req, res) => {
     }
     if (url.pathname === "/api/inbox/test" && req.method === "POST") {
       const b = JSON.parse((await readBody(req, 20000)) || "{}");
-      const r = toRequest({ subject: String(b.subject || ""), from: String(b.from || "Prueba manual"), phone: mail.findPhone(String(b.from || "")), messageId: "test-" + Date.now(), date: new Date().toISOString(), snippet: "", uid: "0", canal: "prueba" });
+      const r = toRequest({ subject: String(b.subject || ""), from: String(b.from || "Prueba manual"), replyTo: String(b.from || ""), phone: mail.findPhone(String(b.from || "")), messageId: "test-" + Date.now(), date: new Date().toISOString(), snippet: "", uid: "0", canal: "prueba" });
       if (!r) return send(400, { error: "El asunto no cumple el formato «Análisis financiero:TICKER» (por ejemplo, «Análisis financiero:EC»)." });
       reqSave(r); return send(200, { solicitud: r, solicitudes: reqList() });
+    }
+    if (url.pathname === "/api/inbox/reply" && req.method === "POST") {   // responde al correo de origen con el informe en PDF adjunto
+      if (!MAIL.pass) return send(400, { error: "Falta GMAIL_APP_PASSWORD: sin él no se puede responder por correo." });
+      const b = JSON.parse((await readBody(req, 20000)) || "{}"), idc = String(b.id || "").replace(/[^a-f0-9\-]/gi, ""), f = path.join(REQ_DIR, idc + ".json");
+      if (!idc || !fs.existsSync(f)) return send(404, { error: "Solicitud no encontrada." });
+      const r = JSON.parse(fs.readFileSync(f, "utf8"));
+      if (!r.responderA) return send(400, { error: "La solicitud no trae un correo al que responder." });
+      const tok = String(b.token || ""), pf = path.join(__dirname, "db", "shared", tok + ".pdf");
+      const pdf = /^[a-f0-9]{24}$/.test(tok) && fs.existsSync(pf) ? fs.readFileSync(pf) : null;
+      const link = pdf ? baseUrl() + "/r/" + tok + ".pdf" : (/^[a-f0-9]{24}$/.test(tok) ? baseUrl() + "/r/" + tok : "");
+      const text = "Hola,\n\nGracias por tu solicitud de análisis financiero (" + r.ticker + "). " + (pdf ? "Adjuntamos el informe en PDF." : "Aquí tienes el informe.") + "\n\n" + String(b.resumen || "").slice(0, 600) + (link ? "\n\nTambién puedes verlo en línea: " + link : "") +
+        "\n\nInformación de apoyo analítico; no constituye asesoría de inversión ni recomendación de compra o venta. Verifica las cifras contra el filing oficial.\n\nVCC50000 Insight";
+      const raw = mail.buildReply({ from: MAIL.user, to: r.responderA, subject: "Informe VCC50000 Insight — " + r.ticker, text, pdf, filename: "VCC50000_Insight_" + r.ticker + ".pdf", inReplyTo: r.idMensaje });
+      await mail.smtpSend({ host: SMTP.host, port: SMTP.port, plain: SMTP.plain, user: MAIL.user, pass: MAIL.pass }, MAIL.user, r.responderA, raw);
+      r.respondida = new Date().toISOString(); r.estado = "atendida"; reqSave(r);
+      return send(200, { enviado: true, a: r.responderA, solicitud: r });
     }
     if (url.pathname === "/api/inbox/status" && req.method === "POST") {
       const b = JSON.parse((await readBody(req, 5000)) || "{}"); const f = path.join(REQ_DIR, String(b.id || "").replace(/[^a-f0-9\-]/gi, "") + ".json");
@@ -298,7 +315,7 @@ if (require.main === module) {
     throw e;
   });
   server.listen(PORT, () => {
-    console.log("VCC50000 v14 — carpeta: " + __dirname);
+    console.log("VCC50000 v15 — carpeta: " + __dirname);
     console.log("Página y API en http://localhost:" + PORT);
     if (!CONTACT) console.log("AVISO: define SEC_CONTACT para consultar la SEC (se usará solo el catálogo local).");
   });
