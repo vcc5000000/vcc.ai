@@ -6,9 +6,12 @@ const tls = require("tls"), net = require("net");
 /* ---- Asunto: "Análisis financiero:TICKER [texto opcional]" ---- */
 const norm = (s) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 function parseSubject(subject) {
-  const s = String(subject || "").replace(/\s+/g, " ").trim();
-  const m = /^(?:(?:re|rv|fwd?)\s*:\s*)*(analisis\s+financiero)\s*:\s*([A-Za-z][A-Za-z0-9.\-]{0,5})(?![A-Za-z0-9.\-])\s*(.*)$/i.exec(norm(s) === s.toLowerCase() ? s : s.normalize("NFD").replace(/[\u0300-\u036f]/g, ""));
-  if (!m) return null;
+  const s = String(subject || "").replace(/[\u200b-\u200d\ufeff]/g, "").replace(/\uff1a/g, ":").replace(/^\s*(\[[^\]]{1,30}\]\s*)+/, "").replace(/\s+/g, " ").trim();
+  const m = /^(?:(?:re|rv|fwd?|fw)\s*:\s*)*(analisis\s+financiero)\s*:\s*([A-Za-z][A-Za-z0-9.\-]{0,5})(?![A-Za-z0-9.\-])\s*(.*)$/i.exec(norm(s) === s.toLowerCase() ? s : s.normalize("NFD").replace(/[\u0300-\u036f]/g, ""));
+  if (!m) {   // forma corta: el asunto es solo el ticker en mayúsculas (EC, SLB, BRK.B)
+    const b = /^(?:(?:[Rr][EeVv]|[Ff][Ww][Dd]?)\s*:\s*)*([A-Z][A-Z0-9.\-]{0,4})$/.exec(s);
+    return b ? { ticker: b[1], empresa: "" } : null;
+  }
   const empresa = m[3].replace(/^(de|del)\s+/i, "").trim();
   return { ticker: m[2].toUpperCase(), empresa };
 }
@@ -59,15 +62,21 @@ function imapSession(cfg) {
 const q = (s) => '"' + String(s).replace(/(["\\])/g, "\\$1") + '"';
 const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-/* Extrae los literales {n}\r\n... de una respuesta FETCH, en orden, por mensaje */
+/* Extrae de cada respuesta FETCH los bloques BODY[...] por su etiqueta (no por su orden), con sus literales {n} */
 function parseFetch(data) {
-  const msgs = []; const re = /\* \d+ FETCH \(/g; let m, starts = [];
+  const msgs = []; const re = /\* \d+ FETCH \(/g; let m; const starts = [];
   while ((m = re.exec(data))) starts.push(m.index);
   starts.forEach((s, k) => {
-    const chunk = data.slice(s, starts[k + 1] || data.length), uid = /UID (\d+)/.exec(chunk), lits = []; let pos = 0, lm;
-    const lre = /\{(\d+)\}\r\n/g;
-    while ((lm = lre.exec(chunk.slice(pos)))) { const st = pos + lm.index + lm[0].length, len = +lm[1]; lits.push(Buffer.from(chunk.slice(st, st + len), "latin1").toString("utf8")); pos = st + len; lre.lastIndex = 0; }
-    if (uid) msgs.push({ uid: uid[1], head: lits[0] || "", text: lits[1] || "" });
+    const chunk = data.slice(s, starts[k + 1] || data.length), out = { uid: "", head: "", text: "" };
+    const lre = /BODY\[([^\]]*)\](?:<\d+>)?\s*\{(\d+)\}\r\n/g; let lm, last = 0;
+    while ((lm = lre.exec(chunk))) {
+      const st = lm.index + lm[0].length, len = +lm[2], txt = Buffer.from(chunk.slice(st, st + len), "latin1").toString("utf8");
+      if (/^HEADER/i.test(lm[1])) out.head = txt; else if (/^TEXT/i.test(lm[1])) out.text = txt;
+      lre.lastIndex = st + len; last = st + len;
+    }
+    const rest = chunk.slice(0, chunk.search(/BODY\[/) > 0 ? chunk.search(/BODY\[/) : 0) + chunk.slice(last);   // UID fuera de los literales
+    const u = /UID (\d+)/.exec(rest); out.uid = u ? u[1] : String(k + 1);
+    msgs.push(out);
   });
   return msgs;
 }
@@ -77,15 +86,23 @@ async function fetchRecent(cfg) {
   try {
     await s.cmd("LOGIN " + q(cfg.user) + " " + q(cfg.pass));
     await s.cmd("SELECT INBOX");
-    const since = new Date(Date.now() - (cfg.days || 30) * 864e5);
-    const sr = await s.cmd("UID SEARCH SINCE " + since.getUTCDate() + "-" + MON[since.getUTCMonth()] + "-" + since.getUTCFullYear() + " SUBJECT " + q("financiero"));
-    const uids = ((/\* SEARCH([\d ]*)/.exec(sr) || [])[1] || "").trim().split(/\s+/).filter(Boolean).slice(-50);
+    const since = new Date(Date.now() - (cfg.days || 7) * 864e5);
+    const sr = await s.cmd("UID SEARCH SINCE " + since.getUTCDate() + "-" + MON[since.getUTCMonth()] + "-" + since.getUTCFullYear());
+    const uids = ((/\* SEARCH([\d ]*)/.exec(sr) || [])[1] || "").trim().split(/\s+/).filter(Boolean).slice(-300);
     if (!uids.length) return [];
-    const fr = await s.cmd("UID FETCH " + uids.join(",") + " (UID BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE MESSAGE-ID REPLY-TO)] BODY.PEEK[TEXT]<0.1500>)");
-    return parseFetch(fr).map((m) => {
+    // 1) solo cabeceras de los últimos mensajes (livianas); 2) el fragmento de texto solo de los que parecen solicitudes
+    const hr = await s.cmd("UID FETCH " + uids.join(",") + " (UID BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE MESSAGE-ID REPLY-TO)])");
+    const msgs = parseFetch(hr).map((m) => {
       const h = headerMap(m.head), from = decodeWords(h.from || ""), subject = decodeWords(h.subject || "");
-      return { uid: m.uid, from, subject, date: h.date ? new Date(h.date).toISOString() : null, messageId: h["message-id"] || "", snippet: bodyText(m.text), phone: findPhone(from, h["reply-to"] || "", m.text) };
+      return { uid: m.uid, from, subject, date: h.date ? new Date(h.date).toISOString() : null, messageId: h["message-id"] || "", replyTo: h["reply-to"] || "", snippet: "", phone: findPhone(from, h["reply-to"] || "") };
     });
+    const hits = msgs.filter((m) => parseSubject(m.subject));
+    if (hits.length) {
+      const tr = await s.cmd("UID FETCH " + hits.map((m) => m.uid).join(",") + " (UID BODY.PEEK[TEXT]<0.1500>)");
+      const texts = {}; parseFetch(tr).forEach((t) => { texts[t.uid] = t.text; });
+      hits.forEach((m) => { const t = texts[m.uid] || ""; m.snippet = bodyText(t); m.phone = findPhone(m.from, m.replyTo, t); });
+    }
+    return msgs;
   } finally { s.close(); }
 }
 

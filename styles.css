@@ -164,3 +164,5 @@ input[type="date"] { width: 100%; margin-top: 6px; padding: 10px 13px; border: 1
 .inbox-table .tk{font-weight:800;color:var(--navy)}
 .chip.new{background:#fff1d6;color:#9a6200}.chip.wip{background:#e0f1ff;color:#0a63c9}
 label.inline{display:inline-flex;align-items:center;gap:6px;font-size:13px}
+.chip.err{background:#fde8e6;color:#c2362b}
+.inbox-table td .btn{white-space:normal;text-align:left}

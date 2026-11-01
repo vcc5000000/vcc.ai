@@ -195,7 +195,7 @@ const STATIC = new Set(["index.html", "app.js", "data.js", "report.js", "store.j
 const TW = { sid: process.env.TWILIO_ACCOUNT_SID || "", token: process.env.TWILIO_AUTH_TOKEN || "", from: (process.env.TWILIO_WHATSAPP_FROM || "").replace(/^whatsapp:/, ""), base: process.env.TWILIO_API_BASE || "https://api.twilio.com" };
 const ACCESS_PASSWORD = process.env.ACCESS_PASSWORD || "";
 const mail = require("./mail.js"), crypto = require("crypto");
-const MAIL = { user: process.env.MAIL_USER || "vcc5000000@gmail.com", pass: process.env.GMAIL_APP_PASSWORD || "", host: process.env.IMAP_HOST || "imap.gmail.com", port: +(process.env.IMAP_PORT || 993), plain: process.env.IMAP_PLAIN === "1", days: 30 };
+const MAIL = { user: process.env.MAIL_USER || "vcc5000000@gmail.com", pass: process.env.GMAIL_APP_PASSWORD || "", host: process.env.IMAP_HOST || "imap.gmail.com", port: +(process.env.IMAP_PORT || 993), plain: process.env.IMAP_PLAIN === "1", days: 7 };
 const REQ_DIR = path.join(__dirname, "db", "requests");
 function reqList() { try { return fs.readdirSync(REQ_DIR).filter((f) => f.endsWith(".json")).map((f) => JSON.parse(fs.readFileSync(path.join(REQ_DIR, f), "utf8"))).sort((a, b) => String(b.recibida).localeCompare(String(a.recibida))); } catch (_) { return []; } }
 function reqSave(r) { fs.mkdirSync(REQ_DIR, { recursive: true }); fs.writeFileSync(path.join(REQ_DIR, r.id + ".json"), JSON.stringify(r)); }
@@ -243,17 +243,17 @@ const server = http.createServer(async (req, res) => {
       if (!r.ok) return send(502, { error: "WhatsApp rechazó el envío: " + (j.message || r.status) });
       return send(200, { enviado: true, sid: j.sid, to });
     }
-    if (url.pathname === "/api/health") return send(200, { ok: true, secContact: !!CONTACT, ai: !!ANTHROPIC_KEY, buzon: MAIL.user, buzonConfigurado: !!MAIL.pass, whatsappConfigurado: !!(TW.sid && TW.token && TW.from), version: "VCC50000-v11", carpeta: __dirname });
+    if (url.pathname === "/api/health") return send(200, { ok: true, secContact: !!CONTACT, ai: !!ANTHROPIC_KEY, buzon: MAIL.user, buzonConfigurado: !!MAIL.pass, whatsappConfigurado: !!(TW.sid && TW.token && TW.from), version: "VCC50000-v14", carpeta: __dirname });
     if (url.pathname === "/api/draft" && req.method === "POST") {
       return send(200, await aiDraft(JSON.parse((await readBody(req, 300000)) || "{}")));
     }
-    if (url.pathname === "/api/inbox" && req.method === "GET") return send(200, { buzon: MAIL.user, configurado: !!MAIL.pass, solicitudes: reqList() });
+    if (url.pathname === "/api/inbox" && req.method === "GET") return send(200, { buzon: MAIL.user, configurado: !!MAIL.pass, solicitudes: reqList(), whatsappConfigurado: !!(TW.sid && TW.token && TW.from) });
     if (url.pathname === "/api/inbox/check" && req.method === "POST") {
       if (!MAIL.pass) return send(400, { error: "Falta GMAIL_APP_PASSWORD en iniciar.bat (contraseña de aplicación de " + MAIL.user + "). Mientras tanto puedes probar con un asunto." });
       const msgs = await mail.fetchRecent({ host: MAIL.host, port: MAIL.port, plain: MAIL.plain, user: MAIL.user, pass: MAIL.pass, days: MAIL.days });
-      let nuevas = 0, ignoradas = 0;
-      msgs.forEach((m) => { const r = toRequest(m); if (!r) { ignoradas++; return; } if (!reqHas(r.id)) { reqSave(r); nuevas++; } });
-      return send(200, { revisados: msgs.length, nuevas, ignoradas, solicitudes: reqList() });
+      let nuevas = 0, ignoradas = 0; const detalle = [];
+      msgs.forEach((m) => { const r = toRequest(m); if (!r) { ignoradas++; if (detalle.length < 5) detalle.push({ asunto: m.subject, de: m.from }); return; } if (!reqHas(r.id)) { reqSave(r); nuevas++; } });
+      return send(200, { revisados: msgs.length, nuevas, ignoradas, detalle: detalle.slice(0, 5), solicitudes: reqList() });
     }
     if (url.pathname === "/api/inbox/test" && req.method === "POST") {
       const b = JSON.parse((await readBody(req, 20000)) || "{}");
@@ -264,7 +264,7 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === "/api/inbox/status" && req.method === "POST") {
       const b = JSON.parse((await readBody(req, 5000)) || "{}"); const f = path.join(REQ_DIR, String(b.id || "").replace(/[^a-f0-9\-]/gi, "") + ".json");
       if (!fs.existsSync(f)) return send(404, { error: "Solicitud no encontrada." });
-      const r = JSON.parse(fs.readFileSync(f, "utf8")); r.estado = ["recibida", "en atención", "atendida"].includes(b.estado) ? b.estado : r.estado; reqSave(r); return send(200, { solicitud: r });
+      const r = JSON.parse(fs.readFileSync(f, "utf8")); r.estado = ["recibida", "en atención", "atendida", "error"].includes(b.estado) ? b.estado : r.estado; reqSave(r); return send(200, { solicitud: r });
     }
     if (url.pathname.startsWith("/api/db/")) {
       const [, , , table, rawKey] = url.pathname.split("/"); const key = decodeURIComponent(rawKey || "");
@@ -298,7 +298,7 @@ if (require.main === module) {
     throw e;
   });
   server.listen(PORT, () => {
-    console.log("VCC50000 v11 — carpeta: " + __dirname);
+    console.log("VCC50000 v14 — carpeta: " + __dirname);
     console.log("Página y API en http://localhost:" + PORT);
     if (!CONTACT) console.log("AVISO: define SEC_CONTACT para consultar la SEC (se usará solo el catálogo local).");
   });

@@ -53,3 +53,12 @@ sin ellos abre WhatsApp (wa.me) con el mensaje listo. Primero pulsa "Atender sol
 El informe se envía como PDF real (pdfreport.js + vendor/pdf-lib.min.js): se genera en el navegador, se publica con enlace privado
 (/r/código.pdf) y, con Twilio configurado, se adjunta al mensaje de WhatsApp (el servidor debe estar en https público, p. ej. Render).
 Sin Twilio, el mensaje de wa.me lleva el enlace al PDF. Copia también la carpeta vendor al repositorio.
+
+--- v13 ---
+El asunto del correo puede ser solo el ticker en MAYÚSCULAS (EC, SLB, BRK.B; hasta 5 caracteres). Sigue aceptándose "Análisis financiero:TICKER".
+El buzón se revisa sobre los correos de los últimos 7 días (solo cabeceras; el texto solo de los que parecen solicitudes).
+
+--- v14 ---
+Cada solicitud tiene tres botones: "Atender solicitud de cliente", "Enviar automático (PDF por WhatsApp)" (Twilio) y "Enviar manual (abrir WhatsApp)".
+Los envíos prepararán el informe solos si aún no está listo. Casilla "Atender y enviar automáticamente las solicitudes nuevas": con la página abierta,
+sesión de analista y Twilio configurado, atiende y envía cada solicitud nueva. Si falla, la solicitud queda en estado "error".
