@@ -43,3 +43,13 @@ Paso 5, "Solicitudes de clientes (WhatsApp -> correo)": lee el buzón MAIL_USER 
 Acepta asuntos "Análisis financiero:TICKER" (con o sin texto después, ej. "Análisis financiero:EC de Ecopetrol"); los demás se ignoran.
 Necesita GMAIL_APP_PASSWORD en iniciar.bat (contraseña de aplicación de Google). Sin ella puedes usar "Simular solicitud".
 Las solicitudes quedan en la carpeta db/requests. "Atender solicitud de cliente" lleva el ticker al informe (requiere registro en el paso 1).
+
+--- v10 ---
+Botón "Enviar informe por WhatsApp" en cada solicitud (paso 5): publica el informe con un enlace privado (/r/código) y envía el mensaje
+con las cifras clave y el enlace. Con TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN y TWILIO_WHATSAPP_FROM configurados lo envía solo;
+sin ellos abre WhatsApp (wa.me) con el mensaje listo. Primero pulsa "Atender solicitud de cliente".
+
+--- v11 ---
+El informe se envía como PDF real (pdfreport.js + vendor/pdf-lib.min.js): se genera en el navegador, se publica con enlace privado
+(/r/código.pdf) y, con Twilio configurado, se adjunta al mensaje de WhatsApp (el servidor debe estar en https público, p. ej. Render).
+Sin Twilio, el mensaje de wa.me lleva el enlace al PDF. Copia también la carpeta vendor al repositorio.

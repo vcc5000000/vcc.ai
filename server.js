@@ -191,7 +191,8 @@ function readBody(req, limit) {
 
 /* ---------- servidor HTTP ---------- */
 const MIME = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".png": "image/png", ".svg": "image/svg+xml" };
-const STATIC = new Set(["index.html", "app.js", "data.js", "report.js", "store.js", "inbox.js", "styles.css"]);
+const STATIC = new Set(["index.html", "app.js", "data.js", "report.js", "store.js", "inbox.js", "pdfreport.js", "vendor/pdf-lib.min.js", "styles.css"]);
+const TW = { sid: process.env.TWILIO_ACCOUNT_SID || "", token: process.env.TWILIO_AUTH_TOKEN || "", from: (process.env.TWILIO_WHATSAPP_FROM || "").replace(/^whatsapp:/, ""), base: process.env.TWILIO_API_BASE || "https://api.twilio.com" };
 const ACCESS_PASSWORD = process.env.ACCESS_PASSWORD || "";
 const mail = require("./mail.js"), crypto = require("crypto");
 const MAIL = { user: process.env.MAIL_USER || "vcc5000000@gmail.com", pass: process.env.GMAIL_APP_PASSWORD || "", host: process.env.IMAP_HOST || "imap.gmail.com", port: +(process.env.IMAP_PORT || 993), plain: process.env.IMAP_PLAIN === "1", days: 30 };
@@ -212,13 +213,37 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, "http://localhost");
   const send = (code, body, type) => { res.writeHead(code, { "Content-Type": type || "application/json; charset=utf-8", "Cache-Control": "no-store" }); res.end(typeof body === "string" || Buffer.isBuffer(body) ? body : JSON.stringify(body)); };
   // Candado de acceso para la publicación (MVP): si defines ACCESS_PASSWORD, todo pide usuario y clave (HTTP Basic). /api/health queda libre para el hosting.
-  if (ACCESS_PASSWORD && url.pathname !== "/api/health") {
+  if (ACCESS_PASSWORD && url.pathname !== "/api/health" && !/^\/r\/[a-f0-9]{24}(\.pdf)?$/.test(url.pathname)) {
     const m = /^Basic (.+)$/.exec(req.headers.authorization || ""); const given = m ? Buffer.from(m[1], "base64").toString("utf8") : "";
     const ok = given.slice(given.indexOf(":") + 1) === ACCESS_PASSWORD && given.indexOf(":") >= 0;
     if (!ok) { res.writeHead(401, { "WWW-Authenticate": 'Basic realm="VCC50000", charset="UTF-8"', "Content-Type": "text/plain; charset=utf-8" }); return res.end("Acceso restringido."); }
   }
+  const SHARE_DIR = path.join(__dirname, "db", "shared");
+  const baseUrl = () => process.env.PUBLIC_URL || ((req.headers["x-forwarded-proto"] || "http").split(",")[0] + "://" + req.headers.host);
   try {
-    if (url.pathname === "/api/health") return send(200, { ok: true, secContact: !!CONTACT, ai: !!ANTHROPIC_KEY, buzon: MAIL.user, buzonConfigurado: !!MAIL.pass, version: "VCC50000-v9", carpeta: __dirname });
+    if (url.pathname.startsWith("/r/") && req.method === "GET") {   // informe compartido: enlace con código no adivinable, sin clave de acceso
+      let t = url.pathname.slice(3); const isPdf = t.endsWith(".pdf"); if (isPdf) t = t.slice(0, -4);
+      const f = path.join(SHARE_DIR, t + (isPdf ? ".pdf" : ".html"));
+      if (!/^[a-f0-9]{24}$/.test(t) || !fs.existsSync(f)) return send(404, "Informe no encontrado o vencido.", "text/plain; charset=utf-8");
+      if (isPdf) { res.writeHead(200, { "Content-Type": "application/pdf", "Content-Disposition": 'inline; filename="VCC50000_Insight.pdf"', "Cache-Control": "no-store" }); return res.end(fs.readFileSync(f)); }
+      return send(200, fs.readFileSync(f), "text/html; charset=utf-8");
+    }
+    if (url.pathname === "/api/report/publish" && req.method === "POST") {
+      const b = JSON.parse((await readBody(req, 14000000)) || "{}"); if (typeof b.html !== "string" || b.html.length < 200) return send(400, { error: "No hay informe para publicar." });
+      const t = crypto.randomBytes(12).toString("hex"); fs.mkdirSync(SHARE_DIR, { recursive: true }); fs.writeFileSync(path.join(SHARE_DIR, t + ".html"), b.html);
+      let pdfUrl = ""; if (typeof b.pdf === "string" && b.pdf.length > 100) { const buf = Buffer.from(b.pdf, "base64"); if (buf.slice(0, 5).toString() === "%PDF-") { fs.writeFileSync(path.join(SHARE_DIR, t + ".pdf"), buf); pdfUrl = baseUrl() + "/r/" + t + ".pdf"; } }
+      return send(200, { url: baseUrl() + "/r/" + t, pdfUrl });
+    }
+    if (url.pathname === "/api/whatsapp/send" && req.method === "POST") {
+      const b = JSON.parse((await readBody(req, 20000)) || "{}"); const to = String(b.to || "").replace(/\D/g, ""), body = String(b.body || "").slice(0, 1500);
+      if (to.length < 8 || to.length > 15) return send(400, { error: "Número de WhatsApp no válido (incluye el código de país)." });
+      if (!TW.sid || !TW.token || !TW.from) return send(200, { enviado: false, simulado: true, to, body, aviso: "WhatsApp automático sin configurar (TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_WHATSAPP_FROM)." });
+      const r = await fetch(TW.base + "/2010-04-01/Accounts/" + TW.sid + "/Messages.json", { method: "POST", headers: { Authorization: "Basic " + Buffer.from(TW.sid + ":" + TW.token).toString("base64"), "content-type": "application/x-www-form-urlencoded" }, body: new URLSearchParams(Object.assign({ From: "whatsapp:" + TW.from, To: "whatsapp:+" + to, Body: body }, /^https:\/\//.test(String(b.mediaUrl || "")) ? { MediaUrl: String(b.mediaUrl) } : {})).toString() });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) return send(502, { error: "WhatsApp rechazó el envío: " + (j.message || r.status) });
+      return send(200, { enviado: true, sid: j.sid, to });
+    }
+    if (url.pathname === "/api/health") return send(200, { ok: true, secContact: !!CONTACT, ai: !!ANTHROPIC_KEY, buzon: MAIL.user, buzonConfigurado: !!MAIL.pass, whatsappConfigurado: !!(TW.sid && TW.token && TW.from), version: "VCC50000-v11", carpeta: __dirname });
     if (url.pathname === "/api/draft" && req.method === "POST") {
       return send(200, await aiDraft(JSON.parse((await readBody(req, 300000)) || "{}")));
     }
@@ -273,7 +298,7 @@ if (require.main === module) {
     throw e;
   });
   server.listen(PORT, () => {
-    console.log("VCC50000 v9 — carpeta: " + __dirname);
+    console.log("VCC50000 v11 — carpeta: " + __dirname);
     console.log("Página y API en http://localhost:" + PORT);
     if (!CONTACT) console.log("AVISO: define SEC_CONTACT para consultar la SEC (se usará solo el catálogo local).");
   });

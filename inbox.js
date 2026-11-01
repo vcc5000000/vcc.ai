@@ -19,6 +19,9 @@
       const es = mk("td"); es.appendChild(mk("span", "chip " + (r.estado === "atendida" ? "ok" : r.estado === "en atención" ? "wip" : "new"), r.estado));
       const act = mk("td"); const b = mk("button", "btn small primary", r.estado === "atendida" ? "Atender de nuevo" : "Atender solicitud de cliente");
       b.type = "button"; b.addEventListener("click", () => attend(r)); act.appendChild(b);
+      const w = mk("button", "btn small", "Enviar informe por WhatsApp"); w.type = "button"; w.style.marginTop = "6px";
+      if (!r.whatsapp) { w.disabled = true; w.title = "La solicitud no trae número de WhatsApp"; }
+      w.addEventListener("click", () => sendWa(r)); act.appendChild(document.createElement("br")); act.appendChild(w);
       [mk("td", "", fdate(r.recibida)), who, tk, mk("td", "", esc(r.asunto)), es, act].forEach((c) => tr.appendChild(c));
       tb.appendChild(tr);
     });
@@ -56,6 +59,22 @@
     st("Atendiendo la solicitud de " + r.ticker + ": se prepara el informe preliminar en el paso 4.", "ok");
     $("step-report").scrollIntoView({ behavior: "smooth" });
   }
+  /* Publica el informe con un enlace privado y lo envía al WhatsApp del cliente (Twilio) o abre WhatsApp con el mensaje listo (wa.me) */
+  async function sendWa(r) {
+    const rep = window.getReportForShare && window.getReportForShare();
+    if (!rep || rep.ticker !== r.ticker) { st("Primero pulsa «Atender solicitud de cliente» y espera a que el informe de " + r.ticker + " aparezca en el paso 4.", "bad"); return; }
+    st("Generando el PDF del informe…");
+    try {
+      let pdf = ""; try { pdf = await window.makeReportPdf(); } catch (e) { st("No se pudo generar el PDF (" + e.message + "); se enviará el enlace del informe en HTML.", "bad"); }
+      const pub = await api("/report/publish", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ html: rep.html, pdf }) });
+      const body = rep.text + "\nInforme completo (PDF): " + (pub.pdfUrl || pub.url) + "\nInformación de apoyo analítico; no es asesoría de inversión.";
+      const j = await api("/whatsapp/send", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ to: r.whatsapp, body, mediaUrl: pub.pdfUrl || "" }) });
+      if (j.enviado) { st("Informe enviado por WhatsApp a " + r.whatsapp + ".", "ok"); await mark(r, "atendida"); return; }
+      window.open("https://wa.me/" + j.to + "?text=" + encodeURIComponent(body), "_blank", "noopener");
+      st("Envío automático sin configurar: se abrió WhatsApp con el mensaje listo para " + r.whatsapp + ". Pulsa enviar allí.", "ok"); await mark(r, "atendida");
+    } catch (e) { st(e.message, "bad"); }
+  }
+  async function mark(r, estado) { try { const j = await api("/inbox/status", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: r.id, estado }) }); r.estado = j.solicitud.estado; render(); } catch (_) {} }
   document.addEventListener("DOMContentLoaded", () => {
     if (!$("btn-inbox-check")) return;
     $("btn-inbox-check").addEventListener("click", check);

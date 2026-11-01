@@ -7,7 +7,7 @@
    campos que digita el analista. No incluye marcas ni textos de terceros.
    ============================================================ */
 (function () {
-  window.VCC_REPORT_V = 9;
+  window.VCC_REPORT_V = 11;
   const REPORT_CSS = `
   .report{font-family:"Segoe UI",Arial,sans-serif;color:#0b2a4a;background:#fff;line-height:1.45;font-size:13px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .report *{box-sizing:border-box}
@@ -508,6 +508,15 @@
       JSON.stringify({ years: d.years, ingresos: d.sales, utilidadBruta: d.grossProfit, utilidadOperacional: d.operatingIncome, utilidadNeta: d.netIncome, ebitda: d.ebitda || null,
         margenOperacionalPct: m.om.map((v) => (num(v) ? Math.round(v * 10) / 10 : null)), margenNetoPct: m.nm.map((v) => (num(v) ? Math.round(v * 10) / 10 : null)), balance: d.balance || null, flujoCaja: d.cashflow || null });
   }
+
+  /* Para compartir por WhatsApp: HTML del informe visible y un mensaje corto con las cifras clave */
+  window.getReportForShare = function () {
+    const d = state.data; if (!d || !$("report-view").querySelector(".report")) return null;
+    const m = metrics(d), i = m.i;
+    const text = "VCC50000 Insight — " + d.name + " (" + d.ticker + ")\nIngresos " + d.years[i] + ": " + d.currency + " " + val(d.sales[i]) + " " + d.unit + (num(m.g[i]) ? " (" + (m.g[i] >= 0 ? "+" : "") + dec(m.g[i], 1) + "% anual)" : "") +
+      "\nMargen operacional: " + pc(m.om[i]) + " · Margen neto: " + pc(m.nm[i]);
+    return { ticker: TICKER_GLOBAL, html: standalone(), text };
+  };
 
   /* ---------- noticias (objetos repetibles) ---------- */
   function renderNews() {
